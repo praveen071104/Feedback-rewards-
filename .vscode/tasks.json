@@ -1,0 +1,19 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Feedback POC: FastAPI",
+			"type": "shell",
+			"command": "& '${workspaceFolder}/feedback-reward-poc/.venv/Scripts/python.exe' -m uvicorn main:app --app-dir '${workspaceFolder}/feedback-reward-poc/backend' --host 127.0.0.1 --port 8000",
+			"isBackground": true,
+			"problemMatcher": []
+		},
+		{
+			"label": "Feedback POC: React",
+			"type": "shell",
+			"command": "npm --prefix '${workspaceFolder}/feedback-reward-poc/frontend' run dev",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

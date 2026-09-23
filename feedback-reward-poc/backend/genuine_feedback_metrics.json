@@ -1,0 +1,38 @@
+{
+  "target": "genuine_feedback",
+  "rows": 300,
+  "unique_feedback": 25,
+  "conflicting_label_groups": 0,
+  "reward_label_disagreements": 0,
+  "evaluation": "25% held-out feedback groups; identical normalized text never crosses the split",
+  "test_rows": 89,
+  "accuracy": 0.6292134831460674,
+  "classification_report": {
+    "No": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 33.0
+    },
+    "Yes": {
+      "precision": 0.6292134831460674,
+      "recall": 1.0,
+      "f1-score": 0.7724137931034483,
+      "support": 56.0
+    },
+    "accuracy": 0.6292134831460674,
+    "macro avg": {
+      "precision": 0.3146067415730337,
+      "recall": 0.5,
+      "f1-score": 0.38620689655172413,
+      "support": 89.0
+    },
+    "weighted avg": {
+      "precision": 0.39590960737280645,
+      "recall": 0.6292134831460674,
+      "f1-score": 0.4860131731886866,
+      "support": 89.0
+    }
+  },
+  "warning": "Small synthetic dataset. Probabilities are not calibrated reliability estimates. Final model refit on all rows."
+}
