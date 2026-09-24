@@ -3,6 +3,7 @@ import re
 
 import joblib
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+from triage import triage_feedback
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -41,20 +42,28 @@ RESTOCK_REQUEST_PATTERN = re.compile(r"\b(?:restock|replenish|stocked|replenishe
 
 class FeedbackPredictor:
     def __init__(self, model_dir: Path = BASE_DIR):
-        paths = [model_dir / "sentiment_model.pkl", model_dir / "genuine_model.pkl"]
-        if not all(path.is_file() for path in paths):
-            raise FileNotFoundError("Run train_sentiment.py and train_genuine.py before predicting.")
-        self.sentiment_model = joblib.load(paths[0])
-        self.genuine_model = joblib.load(paths[1])
+        sentiment_path = model_dir / "sentiment_model.pkl"
+        genuine_path = model_dir / "genuine_model.pkl"
+        if not sentiment_path.is_file():
+            raise FileNotFoundError("Run train_sentiment.py before predicting.")
+        if not genuine_path.is_file():
+            raise FileNotFoundError("Run train_genuine.py before predicting.")
+        self.sentiment_model = joblib.load(sentiment_path)
+        self.genuine_model = joblib.load(genuine_path)
+        if not hasattr(self.genuine_model, "named_steps"):
+            raise ValueError("Run train_genuine.py to create a local scikit-learn model.")
 
     @staticmethod
     def classify(model, feedback: str) -> tuple[str, float]:
         probabilities = model.predict_proba([feedback])[0]
-        index = int(probabilities.argmax())
+        index = max(range(len(probabilities)), key=probabilities.__getitem__)
         return str(model.classes_[index]), float(probabilities[index])
 
     def has_feedback_details(self, feedback: str) -> bool:
-        vectorizer = self.genuine_model.named_steps["tfidf"]
+        if "features" in self.genuine_model.named_steps:
+            vectorizer = dict(self.genuine_model.named_steps["features"].transformer_list)["words"]
+        else:
+            vectorizer = self.genuine_model.named_steps["tfidf"]
         tokens = set(vectorizer.build_tokenizer()(vectorizer.build_preprocessor()(feedback)))
         informative = {token for token in tokens if token.isalpha()} - ENGLISH_STOP_WORDS - GENERIC_WORDS
         recognised = informative.intersection(vectorizer.vocabulary_)
@@ -82,11 +91,12 @@ class FeedbackPredictor:
     def describes_stock_feedback(feedback: str) -> bool:
         return FeedbackPredictor.stock_feedback_context(feedback)[0]
 
-    def predict(self, feedback: str) -> dict:
+    def predict(self, feedback: str, loyal_customer: bool = False) -> dict:
         sentiment, sentiment_confidence = self.classify(self.sentiment_model, feedback)
         genuine, genuine_confidence = self.classify(self.genuine_model, feedback)
         has_details = self.has_feedback_details(feedback)
         stock_feedback, stock_has_context = self.stock_feedback_context(feedback)
+
         if stock_has_context:
             genuine = "Yes"
             yes_index = list(self.genuine_model.classes_).index("Yes")
@@ -95,37 +105,10 @@ class FeedbackPredictor:
             genuine = "No"
             no_index = list(self.genuine_model.classes_).index("No")
             genuine_confidence = float(self.genuine_model.predict_proba([feedback])[0][no_index])
-        eligible = genuine == "Yes"
-        reason = (
-            "Predicted to be genuine, specific and useful feedback; eligible regardless of sentiment."
-            if eligible else
-            "Predicted to be generic or insufficiently specific feedback; sentiment alone does not qualify for a reward."
-        )
-        if stock_has_context:
-            reason = (
-            "Product availability feedback includes timing, frequency, impact, or a contextual restocking suggestion. Eligible regardless of sentiment, "
-                "sentence length, or accompanying generic praise. The stock-feedback rule takes precedence "
-                "over the model; genuine confidence shows the model's probability for Yes."
-            )
-        elif stock_feedback:
-            reason = (
-                "A product availability statement alone is too generic for a reward. Add when or how often "
-                "it happens, its impact, or a specific restocking improvement. Praise, repetition, and extra "
-                "filler do not add useful detail. The stock-feedback rule takes precedence over the model; "
-                "genuine confidence shows the model's probability for No."
-            )
-        elif not has_details:
-            reason = (
-                "Not enough specific feedback details supported by this model. Greetings or thanks alone, "
-                "generic comments, and repeated words do not qualify; greetings alongside detailed feedback "
-                "are allowed. The minimum-detail rule takes precedence "
-                "over the model; genuine confidence shows the model's probability for No."
-            )
         return {
             "sentiment": sentiment,
             "sentimentConfidence": sentiment_confidence,
             "genuineFeedback": genuine,
             "genuineConfidence": genuine_confidence,
-            "rewardEligible": eligible,
-            "reason": reason,
+            **triage_feedback(feedback, has_details, genuine == "Yes", loyal_customer),
         }

@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   ArrowRight,
+  ChartNoAxesCombined,
   Check,
   CircleCheck,
   CircleMinus,
+  Clock3,
+  ClipboardCheck,
   FlaskConical,
   Gift,
   LoaderCircle,
@@ -13,8 +16,12 @@ import {
   ShieldCheck,
   Sparkles,
   TriangleAlert,
+  Ticket,
 } from 'lucide-react'
 import './App.css'
+import Analytics from './Analytics'
+import type { FeedbackRecord } from './Analytics'
+import ClosedLoop from './ClosedLoop'
 
 type Prediction = {
   sentiment: 'Positive' | 'Neutral' | 'Negative'
@@ -23,6 +30,29 @@ type Prediction = {
   genuineConfidence: number
   rewardEligible: boolean
   reason: string
+  category: 'ignored' | 'compliment' | 'major_compliment' | 'minor_complaint' | 'serious_complaint' | 'needs_clarification'
+  ticketRequired: boolean
+  incentiveTier: 'none' | 'tier_based' | 'high'
+  rewardDecision: 'eligible' | 'not_eligible' | 'pending'
+  customerResponse: string
+  ticket: {
+    id: string
+    feedback: string
+    category: 'minor_complaint' | 'serious_complaint'
+    rewardDecision: 'eligible' | 'not_eligible' | 'pending'
+    priority: 'normal' | 'priority'
+    status: 'open'
+    createdAt: string
+  } | null
+}
+
+const categoryLabels = {
+  ignored: 'Ignored',
+  compliment: 'Minor compliment',
+  major_compliment: 'Major compliment',
+  minor_complaint: 'Minor complaint',
+  serious_complaint: 'Serious complaint',
+  needs_clarification: 'Needs clarification',
 }
 
 const examples = [
@@ -39,11 +69,27 @@ const examples = [
     text: 'The meal deal selection is great but sandwiches are often out of stock by lunchtime.',
   },
   { label: 'Generic praise', text: 'Good' },
+  { label: 'Baby clothes compliment', text: 'Baby Clothes are lovely quality and wash well, bought loads for my newborn' },
+  { label: 'Payment complaint', text: 'The checkout charged twice for my order yesterday and I lost money.' },
+  { label: 'Needs review', text: 'The store is unsafe.' },
 ]
 
 function isPrediction(value: unknown): value is Prediction {
   if (!value || typeof value !== 'object') return false
   const result = value as Record<string, unknown>
+  const ticket = result.ticket as Record<string, unknown> | null
+  const complaint = ['minor_complaint', 'serious_complaint'].includes(String(result.category))
+  const validTicket = result.ticketRequired === true ? (
+    complaint &&
+    ticket !== null && typeof ticket === 'object' &&
+    typeof ticket.id === 'string' && /^[0-9a-f-]{36}$/i.test(ticket.id) &&
+    typeof ticket.feedback === 'string' &&
+    ticket.category === result.category &&
+    ticket.rewardDecision === result.rewardDecision &&
+    ticket.priority === (result.category === 'serious_complaint' ? 'priority' : 'normal') &&
+    ticket.status === 'open' && typeof ticket.createdAt === 'string' &&
+    Number.isFinite(Date.parse(ticket.createdAt))
+  ) : ticket === null
   return (
     ['Positive', 'Neutral', 'Negative'].includes(String(result.sentiment)) &&
     ['Yes', 'No'].includes(String(result.genuineFeedback)) &&
@@ -55,8 +101,13 @@ function isPrediction(value: unknown): value is Prediction {
         result[key] <= 1,
     ) &&
     typeof result.rewardEligible === 'boolean' &&
-    result.rewardEligible === (result.genuineFeedback === 'Yes') &&
-    typeof result.reason === 'string'
+    result.rewardEligible === (result.rewardDecision === 'eligible') &&
+    ['eligible', 'not_eligible', 'pending'].includes(String(result.rewardDecision)) &&
+    Object.hasOwn(categoryLabels, String(result.category)) &&
+    typeof result.customerResponse === 'string' &&
+    typeof result.ticketRequired === 'boolean' &&
+    ['none', 'tier_based', 'high'].includes(String(result.incentiveTier)) &&
+    validTicket && typeof result.reason === 'string'
   )
 }
 
@@ -83,16 +134,27 @@ function Confidence({ label, value }: { label: string; value: number }) {
 }
 
 function App() {
+  const currentPage = () => ['#insights', '#closed-loop'].includes(window.location.hash) ? window.location.hash.slice(1) : 'feedback'
+  const [page, setPage] = useState(currentPage)
+  const [records, setRecords] = useState<FeedbackRecord[]>([])
+  useEffect(() => {
+    const navigate = () => setPage(['#insights', '#closed-loop'].includes(window.location.hash) ? window.location.hash.slice(1) : 'feedback')
+    window.addEventListener('hashchange', navigate)
+    return () => window.removeEventListener('hashchange', navigate)
+  }, [])
   const [feedback, setFeedback] = useState(examples[0].text)
+  const [loyalCustomer, setLoyalCustomer] = useState(false)
   const [result, setResult] = useState<Prediction | null>(null)
   const [submittedFeedback, setSubmittedFeedback] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const inFlight = useRef(false)
+  const submissionId = useRef<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const valid = /\p{L}/u.test(feedback.trim())
 
   function changeFeedback(value: string) {
+    submissionId.current = null
     setFeedback(value)
     setResult(null)
     setSubmittedFeedback('')
@@ -108,18 +170,21 @@ function App() {
     setResult(null)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20000)
+    submissionId.current ??= crypto.randomUUID()
     try {
       const response = await fetch('/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feedback: feedback.trim() }),
+        body: JSON.stringify({ feedback: feedback.trim(), submissionId: submissionId.current, loyalCustomer }),
         signal: controller.signal,
       })
       if (!response.ok) {
-        if (response.status === 503)
-          throw new Error(
-            'Models are unavailable. Train both models and restart the backend.',
-          )
+        if (response.status === 503) {
+          const problem = await response.json().catch(() => null)
+          throw new Error(problem?.detail?.startsWith('Ticket storage unavailable')
+            ? 'Ticket storage is unavailable. Please retry; no ticket confirmation was received.'
+            : 'Models are unavailable. Train both models and restart the backend.')
+        }
         if (response.status === 422)
           throw new Error(
             'Enter feedback containing letters, up to 5,000 characters.',
@@ -135,6 +200,12 @@ function App() {
         )
       setSubmittedFeedback(feedback.trim())
       setResult(prediction)
+      if (prediction.category !== 'ignored') setRecords(current => [{
+        ...prediction,
+        id: crypto.randomUUID(),
+        feedback: feedback.trim(),
+        createdAt: Date.now(),
+      }, ...current])
     } catch (caught) {
       setError(
         caught instanceof Error && caught.name === 'AbortError'
@@ -155,18 +226,31 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="/" aria-label="Customer feedback home">
+        <a className="brand" href="#feedback" aria-label="Customer feedback home">
           <span className="brand-mark">
             <MessageSquareText size={21} />
           </span>
           Feedback <span className="brand-divider">/</span>{' '}
           <span className="brand-subtitle">Innovation lab</span>
         </a>
+        <nav className="page-nav" aria-label="Main navigation">
+          <a href="#feedback" aria-current={page === 'feedback' ? 'page' : undefined}>
+            <MessageSquareText size={17} /> Feedback
+          </a>
+          <a href="#insights" aria-current={page === 'insights' ? 'page' : undefined}>
+            <ChartNoAxesCombined size={17} /> Insights
+          </a>
+          <a href="#closed-loop" aria-current={page === 'closed-loop' ? 'page' : undefined}>
+            <ClipboardCheck size={17} /> Closed Loop
+          </a>
+        </nav>
         <span className="poc-badge">
           <FlaskConical size={14} /> Proof of concept
         </span>
       </header>
       <main>
+        <div hidden={page !== 'closed-loop'}><ClosedLoop /></div>
+        {page === 'closed-loop' ? null : page === 'insights' ? <Analytics records={records} onClear={() => setRecords([])} /> : <>
         <div className="page-heading">
           <div>
             <p className="eyebrow">CUSTOMER EXPERIENCE</p>
@@ -252,6 +336,7 @@ function App() {
                   <RotateCcw size={18} />
                 </button>
               </div>
+              <label className="loyalty-input"><input type="checkbox" checked={loyalCustomer} disabled={loading} onChange={event => { setLoyalCustomer(event.target.checked); changeFeedback(feedback) }} />Loyal customer (POC profile)</label>
               {error && (
                 <div className="error" role="alert">
                   <TriangleAlert size={18} />
@@ -288,10 +373,9 @@ function App() {
             <div className="principle">
               <ShieldCheck size={20} />
               <div>
-                <h3>Value over sentiment</h3>
+                <h3>Feedback recognition</h3>
                 <p>
-                  Reward eligibility is based on predicted genuine feedback,
-                  regardless of sentiment.
+                  Service recovery, exceptional appreciation and loyal customers.
                 </p>
               </div>
             </div>
@@ -336,10 +420,10 @@ function App() {
               ) : (
                 <div className="result-content">
                   <div
-                    className={`decision ${result.rewardEligible ? 'eligible' : 'not-eligible'}`}
+                    className={`decision ${result.rewardDecision === 'pending' ? 'pending' : result.rewardEligible ? 'eligible' : 'not-eligible'}`}
                   >
                     <div className="decision-icon">
-                      {result.rewardEligible ? (
+                      {result.rewardDecision === 'pending' ? <Clock3 size={27} /> : result.rewardEligible ? (
                         <CircleCheck size={27} />
                       ) : (
                         <CircleMinus size={27} />
@@ -348,11 +432,11 @@ function App() {
                     <div>
                       <span>REWARD RECOMMENDATION</span>
                       <h3>
-                        {result.rewardEligible ? 'Eligible' : 'Not eligible'}
+                        {result.rewardDecision === 'pending' ? 'Pending review' : result.rewardEligible ? 'Eligible' : 'Not eligible'}
                       </h3>
                     </div>
                     <span className="decision-tag">
-                      {result.rewardEligible ? 'QUALIFIES' : 'DOES NOT QUALIFY'}
+                      {result.rewardDecision === 'pending' ? 'NEEDS DETAILS' : result.rewardEligible ? 'QUALIFIES' : 'DOES NOT QUALIFY'}
                     </span>
                   </div>
                   <div className="metrics">
@@ -387,21 +471,37 @@ function App() {
                     </div>
                   </div>
                   <div className="explanation">
-                    <h3>Decision reason</h3>
+                    <h3>{categoryLabels[result.category]}</h3>
                     <p>{result.reason}</p>
                   </div>
+                  {result.incentiveTier !== 'none' && <div className="explanation"><h3>Incentive recommendation</h3><p>{result.incentiveTier === 'high' ? 'High tier' : 'Tier-based'} · Amount undecided · Not issued</p></div>}
+                  {result.customerResponse && <div className="explanation customer-response">
+                    <h3>Customer response</h3>
+                    <p>{result.customerResponse}</p>
+                  </div>}
+                  {result.ticket && <section className="ticket-details" aria-label="Complaint ticket">
+                    <h3><Ticket size={17} /> Ticket opened</h3>
+                    <dl>
+                      <div><dt>Reference</dt><dd>{result.ticket.id}</dd></div>
+                      <div><dt>Status</dt><dd>Open</dd></div>
+                      <div><dt>Priority</dt><dd>{result.ticket.priority === 'priority' ? 'Priority review' : 'Normal'}</dd></div>
+                      <div><dt>Created</dt><dd>{new Date(result.ticket.createdAt).toLocaleString()}</dd></div>
+                    </dl>
+                    <p>Local POC ticket. No customer notification sent.</p>
+                  </section>}
                   <div className="feedback-quote">
                     <h3>Feedback analysed</h3>
                     <blockquote>{submittedFeedback}</blockquote>
                   </div>
                   <p className="confidence-note">
-                    Confidence is model probability, not verified accuracy.
+                    Model confidence is not severity confidence or verified accuracy.
                   </p>
                 </div>
               )}
             </div>
           </section>
         </div>
+        </>}
         <aside className="disclaimer">
           <FlaskConical size={18} />
           <p>

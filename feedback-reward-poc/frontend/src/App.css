@@ -365,6 +365,50 @@ select {
   color: #5b6570;
   border-color: #dce0e4;
 }
+.pending {
+  background: #fff8df;
+  color: #715713;
+  border-color: #e5d599;
+}
+.decision > div {
+  min-width: 0;
+}
+.decision h3 {
+  overflow-wrap: anywhere;
+}
+.ticket-details {
+  padding-block: 18px;
+  border-block: 1px solid var(--line);
+  margin-top: 18px;
+}
+.ticket-details h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ticket-details dl {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+  margin-block: 16px;
+}
+.ticket-details dl > div {
+  display: grid;
+  grid-template-columns: 70px minmax(0, 1fr);
+  gap: 12px;
+}
+.ticket-details dt, .ticket-details p {
+  color: var(--muted);
+}
+.ticket-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ticket-details p {
+  font-size: 11px;
+  line-height: 1.6;
+}
 .metrics {
   display: grid;
   grid-template-columns: 1fr 1fr;
