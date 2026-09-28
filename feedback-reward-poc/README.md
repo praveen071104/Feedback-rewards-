@@ -2,33 +2,82 @@
 
 A local showcase POC: React + TypeScript + Vite, FastAPI, and two independently trained scikit-learn classifiers. No external AI service or API key is required. This is not a production reward system and does not issue rewards.
 
+## Customer-to-colleague workflow
+
+The default page is **Customer Perspective** (`/#customer`). Customers provide their name, an email or phone number, Sparks Customer status, a conditional Sparks ID, feedback and a 1-5 star rating. Store selection also supports a QR destination such as `/?store=bluewater#customer`. The privacy notice is placeholder wording pending business approval. Successful submission clears the form and shows a green confirmation with the case reference; failures retain all fields and retry with the same submission UUID.
+
+**Store Colleague Perspective** (`/#feedback`) contains received customer cases, concise database-derived insights and the preserved analysis dashboard. **Feedback Resolution Hub** (`/#resolution-hub`) replaces the fictional Closed Loop demo; the old hash remains an alias. Store, status, search and final-decision filters sit above the case area. Case statuses are only **Opened**, **In Progress**, and **Resolved**. Forward transitions and direct Opened-to-Resolved are allowed; resolution requires a confirmed reward decision. A case cannot move backwards.
+
+The bell shows unread cases across all stores and opens the newest unread case. Opening a case marks it read without finalizing its reward decision. Colleagues record their name, decision reason, optional internal note and status. Model recommendation and final decision are separate; final decisions start null. Missing/pending assessments, conflicting eligible/genuine signals or genuine confidence below `REWARD_REVIEW_THRESHOLD` (default `0.75`) require review. Negative sentiment alone never means ineligible. Existing usefulness, relevance, stock and incentive rules remain in use. No customer clarification is requested in the UI.
+
+**Customer Communication** previews a generic template before the separate **Send customer update** action. Reward-specific templates require the matching saved colleague decision. Email success is explicitly labelled **POC simulation**; no email is actually delivered. Phone-only cases record a notification without claiming email delivery. Non-Sparks messages do not claim a Sparks account confirmation. The template, channel, time, simulation status and decision history persist in MongoDB. Rewards and Sparks balances are not issued or updated.
+
+### Storage and compatibility
+
+The existing MongoDB URI, database and `feedback` collection, local model artifacts, analysis history, training tools and SQLite tickets are retained. The same synchronous PyMongo client now also serves:
+
+- `customer_profiles`: generated `customer_id`, name, email/phone, Sparks flag and nullable Sparks ID, UTC creation/update times. A profile belongs to one idempotent submission; unverified contact details are deliberately not used to merge identities.
+- `feedback_cases`: `case_id`, linked `customer_id`, store, feedback, rating, actual model metadata, recommendation, colleague decision/reason/time, three-state workflow, notification state, simulated communication and activity history. Full customer details are not duplicated here.
+- `feedback_case_events`: a single monotonic revision document for change signalling across API processes.
+
+Unique indexes cover profile `customer_id` and case `case_id`. Cases also index `customer_id`, `store_id`, `case_status`, `created_at`, `notification.is_read` and newest-first pagination. Indexes are created on the first submission. Private retry hashes/operation IDs and MongoDB `_id` fields are excluded from responses. UUID retries prevent duplicate requests; they are not content-based fraud detection. Colleague writes use operation IDs and optimistic versions, returning 409 on conflicting edits.
+
+No destructive migration is required. Legacy records remain in **Insights**, with their original assessments and real ticket actions; they are not invented customer profiles or included in new-case aggregates. Customer-case insights cover all matching MongoDB cases, not only the visible page, and reward totals count final colleague decisions (null counts as Awaiting Review). Profile, case and revision writes are retry-repairable but not a multi-document transaction on standalone MongoDB. An abandoned failed submission can leave an orphan profile; there is no automated reconciliation or retention job.
+
+### Live notifications and API
+
+The browser uses WebSocket `/api/colleague/events`. FastAPI checks the MongoDB revision once per second in a worker thread and pushes invalidation events, supporting standalone MongoDB without replica-set change streams or another messaging service. Events contain no customer details. Submission/read/action responses also refresh the current tab immediately. A ten-second notification poll and reconnect attempt provide fallback and recover missed events. All connections close on unmount. Reverse proxies must forward WebSocket upgrades; the Vite dev/preview proxies do so.
+
+Browser routes below use `/api`; Vite strips that prefix for the existing FastAPI routing convention:
+
+| Method | FastAPI route | Purpose |
+| --- | --- | --- |
+| POST | `/customer-feedback` | Validate profile/feedback, run existing inference, persist case, signal notification |
+| GET | `/colleague/feedback-cases` | Store/status/search/final-decision filters; `page` and `page_size` pagination |
+| GET | `/colleague/feedback-cases/{case_id}` | Case, linked customer and communication previews |
+| PATCH | `/colleague/feedback-cases/{case_id}` | Versioned decision, status, reason, colleague and internal note |
+| GET | `/colleague/notifications` | Unread count and up to 20 unread/recent references |
+| PATCH | `/colleague/notifications/{case_id}/read` | Idempotent read state |
+| POST | `/colleague/feedback-cases/{case_id}/notify-customer` | Versioned, idempotent simulated communication |
+| GET | `/colleague/insights` | MongoDB aggregate metrics, optionally by store |
+| WS | `/colleague/events` | Revision notifications |
+
+Request/response models are documented in `/docs`. New optional backend variables are `REWARD_REVIEW_THRESHOLD` and `FEEDBACK_ALLOWED_ORIGINS` (comma-separated WebSocket browser origins, default localhost/127.0.0.1 on ports 5173 and 5174). Add the actual origin for alternative ports or preview port 4173. Existing `MONGODB_URI`, `MONGODB_DATABASE`, `FEEDBACK_TICKETS_DB` and Vite's `FEEDBACK_API_URL` are unchanged. No secrets or dependencies were added. Structured case log records use IDs and action names; access logs strip search query strings.
+
+**Model limitation:** this repository has no DistilBERT pipeline. It intentionally uses local TF-IDF/Logistic Regression and VADER, which are preserved without retraining or downloads. Case records identify the real model names and SHA-256 artifact versions, not DistilBERT. Sentiment support is not calibrated VADER confidence. A DistilBERT replacement would be a separate, explicitly approved model change.
+
+**POC boundary:** navigation is not authentication. There is no public profile-directory endpoint, but anyone with local API access can retrieve case-linked contacts. Use fictional data on localhost only. No identity verification, approved privacy/retention policy, real messaging, reward fulfilment, or production authorization is implemented.
+
+Run the existing setup/start commands below. Validate with `python -m pytest backend/tests -q` using the project venv, `npm --prefix frontend run build`, `npm --prefix frontend run lint`, and `npm --prefix frontend run test:e2e`. Tests use disposable MongoDB databases and isolated API/frontend ports; they cover live inference, separate profiles, null Sparks IDs, retry protection, low-confidence review, status transitions, read state, communication, insights, cross-tab push, polling fallback and mobile/desktop layouts.
+
 ## Flow and business rules
 
 ```text
 Customer feedback -> Sentiment model -> Positive / Neutral / Negative
                   -> Genuine-feedback model + decision rules -> Yes / No
                   -> Response policy -> Category / Ticket requirement
-                  -> Incentive recommendation -> Eligible / Not eligible / Pending
+                  -> Incentive recommendation -> Reward Eligible / Not Eligible / Awaiting Colleague Review
+                  -> Colleague confirmation -> Final decision / Generic communication / Resolution
 ```
 
-Both models train and predict entirely locally with scikit-learn: no Hugging Face, pretrained-model download, PyTorch, or external AI call. Sentiment uses word unigram/bigram TF-IDF + Logistic Regression. Genuine feedback uses a feature union of word unigram/bigram and character 3-5-gram TF-IDF + Logistic Regression. Both use balanced class weights and a fixed random seed. Saved joblib files include their fitted vectorizers. The genuine classifier sees feedback text, not sentiment.
+All analysis runs locally: no Hugging Face, pretrained-model download, PyTorch, or external AI call. Sentiment labels now use VADER with bounded retail phrases and clause-level checks: praise is positive, problems negative, and mixed or unpolarised comments neutral. Courtesy words such as "please" do not turn a complaint positive. The original word TF-IDF + Logistic Regression sentiment model supplies support for the displayed label, not confidence in VADER's decision. Negation, sarcasm and complex mixed wording remain limitations; passing examples is not proof of general accuracy. Genuine feedback still uses the local word/character TF-IDF + Logistic Regression model and detail safeguards, independently of sentiment.
 
 Reward eligibility is separate from the genuine-feedback label and sentiment. The POC response policy is:
 
 | Feedback | Response | Incentive recommendation |
 | --- | --- | --- |
-| Minor compliment | Thank with context; close the loop | None |
+| Minor compliment | Thank with context; close the loop | None for generic praise; tier-based for specific useful positive feedback |
 | Gibberish | Ignore; no reply or ticket | None |
-| Minor complaint | Apologise; open a ticket when details suffice, otherwise request details | None by default |
-| Serious complaint | Apologise; open a priority ticket for review | Tier-based when sufficiently detailed; otherwise pending |
+| Minor complaint | Apologise; open a ticket when details suffice, otherwise request details; record follow-up action | Tier-based when specific, genuine and useful |
+| Serious complaint | Apologise; priority ticket for store action; ask for missing details | Automatically tier-based when sufficiently detailed; otherwise await customer details |
 | Major compliment | Thank the customer for specific exceptional service recognition | Tier-based |
-| Loyal customer with genuine, specific feedback | Respond to the underlying feedback | High tier, overriding the default incentive |
+| Loyal customer with genuine meaningful feedback | Preserve category, thanks/apology, tickets and any outstanding questions | High tier, independently of the base incentive decision |
 
-`incentiveTier` is `none`, `tier_based`, or `high`. Amounts, tier definitions and fulfilment are deliberately undecided. Loyalty is a manually selected POC profile flag, not an authenticated customer entitlement. The live API does not assign colleagues or contact customers; the Closed Loop page illustrates those future steps with sample cases.
+`incentiveTier` remains `none`, `tier_based`, or `high`. `high` means a high-tier Sparks recommendation. The rules above describe the underlying legacy predictor, not a final customer-case decision: the new workflow requires colleague confirmation and does not expose its clarification questions to customers. Amounts and fulfilment are not configured. Sparks status is self-declared, not an authenticated entitlement. Genuine means predicted usefulness, not verified truth. No rewards are issued. Named colleague assignment and store actions can still be saved on existing tickets.
 
-The bounded English phrase rules in `backend/triage.py` consider serious issues first, then complaints and compliments. Major compliments require recognised exceptional-service wording, meaningful detail, a product/service subject, and a genuine label. Explicit service recovery can be recognised without hiding a separate complaint. Loyalty only overrides eligibility for classified, meaningful feedback with a genuine label; gibberish is never rewarded just because the loyalty flag is selected. Complex negation, novel wording, severity, and major-versus-minor distinctions still need human review.
+The bounded English phrase rules in `backend/triage.py` consider serious issues first, then complaints, improvement suggestions and compliments. Major compliments require recognised exceptional-service wording, meaningful detail, a product/service subject and a genuine label. Specific actionable complaints and useful positive examples can qualify regardless of sentiment. Concrete store improvement suggestions have category `suggestion`; uncertain usefulness requests clarification. Loyalty can change eligibility but does not remove operational questions or alter ticket requirements/category. Gibberish remains ineligible. Complex negation, novel wording and severity remain limitations; production oversight is not implemented.
 
-The genuine classifier architecture and its original safeguards are unchanged: contextual stock feedback can set genuine to Yes; bare availability claims set it to No; other feedback uses a minimum-detail gate and the model. A genuine stock complaint does not automatically earn an incentive. The genuine model has been retrained locally with the expanded synthetic supplement described below. Sentiment and the six-category reward policy are unchanged.
+The genuine classifier and stock safeguards are unchanged: contextual stock feedback can set genuine to Yes; bare availability claims set it to No; other feedback uses a minimum-detail gate and the model. Specific timing such as "cakes sold out by 5pm" can earn a recommendation; "cakes sold out" still requests details. The synthetic training expansion below predates these policy/sentiment changes. Previously saved records retain their original assessment; new submissions and clarifications use the current policy.
 
 This check addresses a real model failure: text with no TF-IDF features such as "Hi" previously defaulted to Yes from the classifier's intercept. Stopwords alone or a repeated known keyword could also cause false approvals. The safeguard uses distinct supported content words, not just message length. It is a heuristic, not semantic understanding: useful unfamiliar wording can be rejected and combinations of recognised keywords can still fool it. Better labelled data and independent evaluation remain necessary.
 
@@ -39,10 +88,13 @@ The reason is a transparent rule-based explanation of the prediction, not an LLM
 ```text
 feedback-reward-poc/
   frontend/
-    src/App.tsx                Feedback form, request lifecycle, results
+    src/App.tsx                Perspectives, legacy analysis and saved history
     src/App.css                Responsive workspace styling
-    src/ClosedLoop.tsx          Sample store cases, history and demo resolution
-    src/ClosedLoop.css          Closed Loop responsive layout
+    src/CustomerFeedbackForm.tsx Customer form, stars and success confirmation
+    src/CustomerJourney.css     Customer and colleague workflow styling
+    src/caseApi.ts              Typed API and live notifications
+    src/FeedbackResolutionHub.tsx Live cases, review and communication
+    src/ClosedLoop.css          Reused responsive case layout
     src/index.css              Typography and design tokens
     src/main.tsx               React entry point
     index.html
@@ -61,9 +113,11 @@ feedback-reward-poc/
     triage.py                  Response and incentive policy
     tickets.py                 SQLite-backed local complaint tickets
     main.py                    FastAPI endpoints
+    cases.py                   Customer profiles, cases, review APIs and events
     requirements.txt
     pytest.ini
     tests/test_api.py
+    tests/test_cases.py
     sentiment_model.pkl        Generated by training
     genuine_model.pkl          Generated by training
     sentiment_metrics.json     Generated evaluation report
@@ -76,7 +130,7 @@ feedback-reward-poc/
 
 ## Setup on Windows PowerShell
 
-Prerequisites: Python 3.11+ (tested with 3.13), Node.js 22.12+ or a supported newer LTS, and npm. Run these commands from this project folder. The CSV has already been copied into `backend/data`; the original is unchanged.
+Prerequisites: Python 3.11+ (tested with 3.13), Node.js 22.12+ or a supported newer LTS, npm, and a running local MongoDB Community Server. MongoDB Compass is a viewer/client, not the database server. Run these commands from this project folder. The CSV has already been copied into `backend/data`; the original is unchanged.
 
 ```powershell
 python -m venv .venv
@@ -112,68 +166,130 @@ npm --prefix frontend run dev
 - API documentation: http://127.0.0.1:8000/docs
 - Readiness: http://127.0.0.1:8000/health
 
-The frontend sends requests to `/api/predict`; Vite proxies to FastAPI's `/predict`, avoiding cross-origin browser requests. If port 8000 is occupied, choose another API port and update both proxy targets in `frontend/vite.config.ts`. Stop either server with Ctrl+C. Keep both services bound to localhost.
+The frontend sends requests to `/api/predict`; Vite proxies to FastAPI's `/predict`, avoiding cross-origin browser requests. If port 8000 is occupied, choose another API port and set `FEEDBACK_API_URL` before starting Vite. Stop either server with Ctrl+C. Keep all services bound to localhost.
 
 On macOS/Linux, replace `.\.venv\Scripts\python.exe` with `.venv/bin/python` and use `python3` to create the environment. Other commands are the same.
 
-## Session analytics
+## MongoDB and saved analytics
 
-Open **Insights** in the header or visit http://127.0.0.1:5173/#insights. The dashboard records successful, validated predictions submitted in this browser tab, including requests that finish while Insights is open. Failed requests are excluded. It shows sentiment distribution, genuine-feedback and eligibility totals, recent activity in five-minute intervals, and the latest 50 matching feedback entries. Totals include all matching session entries, including repeat submissions.
+The backend defaults to `mongodb://127.0.0.1:27017/`, database `feedback_reward_poc`, collection `feedback`. Connect Compass to that URI and open **feedback_reward_poc > feedback** after the first successful submission. No cloud service or API key is required. Optional `MONGODB_URI` and `MONGODB_DATABASE` environment variables override these defaults; set them in the backend terminal before starting FastAPI. Do not commit credentials or use a public unauthenticated database.
 
-Time and sentiment filters apply to totals, distribution, and recent feedback; the activity chart always shows the latest 12 five-minute intervals within those filters. The clock refreshes every 15 seconds. Clear history requires confirmation. History stays in memory only and resets on reload or closing the tab; it does not include other users, tabs, API clients, or the training CSV. There is no persistent analytics database or background ingestion. Predictions are not verified authenticity or accuracy.
+Every successful prediction is persisted, including ignored/non-genuine feedback. Each document contains feedback text, store ID/name/location, sentiment and confidence, genuine Yes/No and confidence, reward eligibility/decision/tier, loyalty flag, response/questions, ticket reference, timestamps and revision. The store defaults to **Not specified**; the three selectable stores use simple location labels only. Store selection is metadata, not an eligibility rule. An ignored classification means no response/reward/ticket, not that the record is discarded.
+
+Open **Insights** at http://127.0.0.1:5173/#insights. Saved feedback survives refresh, tab closure and backend restarts. The dashboard initially loads the latest 100 conversations; **Load older feedback** fetches more. Totals and time/sentiment/store/customer-type filters apply to loaded records, not an unseen whole-database aggregate. Recent activity shows twelve five-minute intervals. Refresh fetches the latest page and merges records by ID/revision; it does not delete records. Changes from other clients appear after refresh, not via live push.
+
+Use the open-folder button on a history row to reopen its saved result and ticket actions. Incomplete recommendations display **Awaiting Colleague Review**; the UI no longer asks customers questions. The legacy reassessment API remains compatible. Unsaved drafts are not retained across reloads. Existing SQLite tickets are not migrated into customer profiles; fictional demo cases have been replaced by the live Hub.
+
+`GET /feedback?limit=100&before=<feedback UUID>` returns `{items, nextCursor}` newest first. Omit `before` for the first page; limits are 1-200. `GET /stores` returns the supported store metadata. Internal retry snapshots are not included in history responses. MongoDB outages return 503, and the UI does not falsely confirm a save. An ambiguous/lost response can still mean a write completed; retry with the same submission UUID to avoid a duplicate.
+
+This is local POC storage with no authentication, customer-level access isolation, encryption configuration, retention/deletion workflow or backups. Anyone with API access can read all saved feedback. Use fictional feedback only and do not expose the API or MongoDB to a network. Loyalty is a self-selected flag, not an identified or verified customer profile.
 
 Screenshots: [Insights desktop](docs/screenshots/analytics-desktop.png), [Insights mobile](docs/screenshots/analytics-mobile.png).
 
-## Closed Loop demo
+## Feedback Resolution Hub
 
-Open **Closed Loop** in the header or visit http://127.0.0.1:5173/#closed-loop. Seven fictional cases across three stores demonstrate the proposed store QR feedback journey: receipt, colleague alert, apology or thanks, ticket/owner where appropriate, completed action, and customer update. A gibberish sample is counted as ignored without retaining its text or opening a ticket.
+Open **Feedback Resolution Hub** in Store Colleague navigation or visit http://127.0.0.1:5173/#resolution-hub. Submit a fictional customer case first; the Hub has no seeded or fabricated cases. Its filters, insights, decisions, communications and activity history use MongoDB. Customer cases persist across navigation and reload. Existing analysis-only records remain accessible from Insights and retain their SQLite workflows.
 
-Filter by store and status or search case references, customers and feedback. Store totals follow the store filter; the list follows all filters. Resolved cases display **You said / We did**, named colleagues, action histories and simulated customer messages. Minor and major compliments can close through acknowledgement without a complaint ticket. Tier-based and high-tier recommendations never imply an incentive has been issued.
-
-For an interactive demonstration, select **Empty hand-soap dispenser**, choose **Start work (demo)**, enter the completed action and choose **Record resolution (demo)**. The case becomes Resolved, its history and closed-case totals update, and a simulated customer update is recorded. Changes survive navigation within the tab but reset on refresh. Awaiting-details cases cannot be resolved directly.
-
-This page uses in-memory dummy data, separate from live predictions, SQLite tickets and Insights. No QR registration, real colleague alerts, customer contact, identity verification, evidence verification or incentive delivery is implemented. Assignments, callbacks and historical completions in the samples are illustrative only. The resolution button records a demo assertion, not proof that physical work happened.
-
-Screenshots: [Closed Loop desktop](docs/screenshots/closed-loop-desktop.png), [Closed Loop mobile](docs/screenshots/closed-loop-mobile.png).
+Screenshots: [Customer confirmation](docs/screenshots/customer-success-mobile.png), [Resolution Hub desktop](docs/screenshots/resolution-hub-desktop.png), [Resolution Hub mobile](docs/screenshots/resolution-hub-mobile.png).
 
 ## Prediction API
+
+### Saved store follow-up
+
+Analyse a complaint or reopen it from Insights. Under **Complaint ticket > Store follow-up**, enter a named colleague, choose **In Progress**, record actions and Customer Communication, then choose **Save store actions**. These preserved SQLite operations are separate from new customer-case review in the Hub. No staff directory or automatic on-call routing is configured; assignment is a manually entered name, not a verified staff account.
+
+Customer email is optional and requires the permission checkbox. A saved owner, email, permission and update enable **Open email draft**, which opens the configured email client. The app does not send the message or verify delivery. Only after contacting the customer outside the app should a colleague select **Contact completed outside this app**. This is a self-reported contact record, not evidence of delivery. Resolving a ticket requires a named owner, completed action and customer update; resolution does not imply the customer was contacted. Status and contact record are shown separately.
+
+`GET /tickets/{uuid}/workflow` loads the authoritative operational state. `PUT /tickets/{uuid}/workflow` accepts `operationId` (UUID), `expectedVersion`, `status` (`open`, `in_progress`, `resolved`), `assignee`, `actionTaken`, `customerUpdate`, `customerEmail`, `contactConsent` and `contactStatus` (`not_contacted`, `contact_recorded`). Each save appends a timestamped history entry in SQLite. Exact retries return the same snapshot, stale versions return 409, invalid contact/resolution fields return 422, missing tickets return 404 and storage failures return 503. Reload confirms before discarding unsaved form changes. Resolved workflows cannot be reopened through this form; clarification never resets operational history.
+
+The original prediction's embedded ticket is an analysis snapshot. Its legacy `status: open` is not the current work status; use the workflow endpoint for that. Assignment/actions are stored separately from MongoDB prediction snapshots, avoiding a second write for each work update. No migration deletes or changes existing tickets.
+
+Keep this on localhost with fictional contact details. There is no authentication, role enforcement, verified consent, encryption configuration, retention/deletion workflow or tamper-proof audit trail. Contact addresses also occur in saved history. Production needs those controls and a configured messaging/CRM integration before handling real customers.
+
+### Legacy clarification API
+
+The legacy `/clarify` contract and its tests remain available for compatibility, but no UI journey solicits customer clarification. New customer cases use colleague review instead. `clarificationQuestions` and `rewardDecision: "pending"` are retained in legacy analysis responses; the visible pending label is **Awaiting Colleague Review**. The following notes describe API-only reassessment, not the customer journey.
+
+`POST /clarify` requires `feedbackId` from the saved prediction, `originalFeedback` (the complete previous conversation), `feedback` (the new reply), a fresh UUID `submissionId` for each distinct reply, and `ticketId` when a ticket exists. Send the saved `storeId` and `loyalCustomer`; changing them during clarification returns 409. Original feedback and reply are joined with two newlines and must total at most 5,000 characters. The same local models and policy reassess that combined text; no model retraining or external AI calls occur.
+
+Existing-ticket updates and response snapshots are stored atomically in SQLite. Exact retries return the saved response without overwriting newer details. Changed reuse of a reply ID or stale previous feedback returns 409; missing tickets return 404; invalid input or a missing required ticket reference returns 422; model/storage unavailability returns 503. The UI preserves the previous result and reply on errors. Ticket reassessments retain the original ID and creation time. New minor tickets use the existing idempotent creation flow.
+
+All saved conversations can be reopened from Insights after refresh. There is no authentication, verified identity, external messaging, safety escalation integration or compensation workflow. Use fictional feedback on localhost only. Priority attention is a ticket flag, not a claim that a colleague has been notified. Automation cannot verify an allegation or physical resolution, and serious incidents need a real operational escalation process before deployment.
+
+MongoDB and SQLite are separate local stores, not a distributed transaction. A failed MongoDB write can leave a ticket saved while feedback saving is unconfirmed. Exact retries repair this path using the same submission/reply ID. MongoDB clarification writes use revision checks and preserve retry snapshots. This POC does not provide cross-store atomicity or automatic reconciliation for abandoned partial failures; production use needs a unified transactional persistence design or an outbox/reconciliation process.
+
+Screenshots: [Clarification desktop](docs/screenshots/clarification-desktop.png), [Clarification mobile](docs/screenshots/clarification-mobile.png).
+
+### Initial analysis
 
 `POST /predict`, content type `application/json`:
 
 ```json
-{ "feedback": "Baby clothes are lovely quality and wash well, bought loads for my newborn", "loyalCustomer": true }
+{ "feedback": "The colleague went above and beyond, finding my missing order and arranging delivery to my home.", "loyalCustomer": true, "storeId": "bluewater" }
 ```
 
 Response shape (illustrative probabilities, not a promised output):
 
 ```json
 {
+  "feedbackId": "ce0c2b7f-dc5f-4055-870b-d3e93f0eb003",
+  "feedback": "The colleague went above and beyond, finding my missing order and arranging delivery to my home.",
+  "storeId": "bluewater",
+  "store": { "name": "M&S Bluewater", "location": "Greenhithe, Kent" },
+  "loyalCustomer": true,
+  "createdAt": 1790251200000,
+  "updatedAt": 1790251200000,
+  "revision": 0,
   "sentiment": "Positive",
   "sentimentConfidence": 0.91,
   "genuineFeedback": "Yes",
   "genuineConfidence": 0.95,
   "rewardEligible": true,
-  "category": "compliment",
+  "category": "major_compliment",
   "rewardDecision": "eligible",
   "incentiveTier": "high",
   "ticketRequired": false,
   "ticket": null,
-  "customerResponse": "Thank you for your kind feedback about our baby clothes.",
-  "reason": "A loyal customer provided genuine, specific feedback; a high-tier incentive is recommended."
+  "clarificationQuestions": [],
+  "customerResponse": "Thank you for sharing how our team made a difference. We appreciate your detailed recognition.",
+  "reason": "Genuine feedback from a loyal customer qualifies for a high-tier incentive recommendation. Points amounts are not configured."
 }
 ```
 
-Confidence is the displayed class's `predict_proba` value in [0, 1]. When a genuine-feedback rule sets No or Yes, genuine confidence remains the original model's probability for that displayed label, which may be below 50%; it is not fabricated certainty in the rule. The reason explains the response/incentive policy, not the model internals. The UI rounds probabilities to percentages. These values are not calibrated accuracy or severity confidence. Actual output depends on the trained data, including labels for mixed feedback.
+`sentimentConfidence` is retained for API compatibility but is the original logistic model's support for the label selected by VADER/retail rules. The UI calls it **Sentiment model support**, not confidence in the new decision. `genuineConfidence` similarly remains model probability for the displayed genuine label even when a rule overrides it. Both can be below 50%; neither is calibrated accuracy, authenticity or severity confidence.
 
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8000/predict -Method Post -ContentType 'application/json' -Body '{"feedback":"The checkout queue is very long between 5 PM and 6 PM."}'
 ```
 
-Input must be a string of 1-5,000 characters containing at least one letter. Optional `loyalCustomer` is a strict boolean, default false. Optional `submissionId` is a UUID; the UI reuses it on retries and resets it when feedback or loyalty changes. Blank, numeric-only, malformed, oversized, and extra-field requests return 422. Unavailable models return 503 with training instructions. `/health` reports `modelsLoaded`; its HTTP 200 indicates API reachability, not necessarily model readiness.
+Input must be a string of 1-5,000 characters containing at least one letter. Optional `loyalCustomer` is a strict boolean, default false. `storeId` is `unspecified` (default), `marble-arch`, `stratford-city`, or `bluewater`. Optional `submissionId` is a UUID; the UI reuses it on retries and resets it when feedback, store or loyalty changes. Reusing an ID with different input returns 409. Separate IDs are separate submissions, even with identical text. Blank, numeric-only, malformed, oversized, and extra-field requests return 422. Unavailable models/storage return 503. `/health` reports `modelsLoaded` and `storageReady`; its HTTP 200 indicates API reachability, not full readiness.
 
-When `ticketRequired` is true, the API stores the complaint text and ticket metadata in local `backend/tickets.sqlite3` (or `FEEDBACK_TICKETS_DB`). `GET /tickets/{uuid}` retrieves it after a restart. Ticket fields are `id`, `feedback`, `category`, `rewardDecision`, `priority`, `status` (open) and `createdAt`. Retries reuse the ticket; conflicting reuse returns 409. Storage failures return 503 rather than a false ticket confirmation. Non-ticket feedback is not stored by the API. Tickets have no authentication, retention workflow, assignment or resolution API; keep this local and use synthetic feedback only. The Closed Loop page is not a view of this database.
+When `ticketRequired` is true, the legacy analysis API also stores complaint text and ticket metadata in local `backend/tickets.sqlite3` (or `FEEDBACK_TICKETS_DB`). `GET /tickets/{uuid}` retrieves its analysis snapshot after restart; `/tickets/{uuid}/workflow` retrieves current assignment, actions, contact record and resolution. Retries reuse the ticket; conflicting reuse returns 409. Storage failures return 503 rather than a false confirmation. New customer submissions use MongoDB cases and the live Feedback Resolution Hub instead.
 
 ## Validation
+
+### Genuine-feedback business criteria
+
+Evaluate usefulness and specificity independently of sentiment, loyalty and reward eligibility. "Genuine" here does not verify identity or whether an account is true.
+
+| Expected label | Characteristics |
+| --- | --- |
+| Yes | Specific customer experiences, actions taken, employee interactions, product experiences, issue descriptions or detailed observations |
+| No | Only generic praise, very short uninformative comments, repetitive statements, vague appreciation or insufficient detail |
+
+A product name or employee mention alone is insufficient: "The jacket" or "Helpful staff" does not describe what happened. A concise but specific report can be useful; do not reject it purely for being short. Longer repetition does not add information. Positive, negative and neutral feedback can each be genuine.
+
+Run the separate local diagnostic benchmark from the project folder:
+
+```powershell
+.\.venv\Scripts\python.exe backend/evaluate_genuine.py
+```
+
+This reads `backend/data/genuine_business_evaluation.csv` and writes `backend/genuine_business_metrics.json`. It does not retrain models, store submissions or change reward decisions. The report includes the labelling rationale, raw model versus final pipeline predictions, detail-gate results, rule overrides, false positives/negatives, confusion matrices and breakdowns across all eleven business characteristics. `--cases` and `--output` select another labelled set/report; `--training-data` must name the actual training CSVs when evaluating a custom model so the overlap check is meaningful.
+
+On the initial 22 assistant-authored cases (12 Yes, 10 No), the raw model had one false positive and no false negatives: "The jacket." was predicted Yes. The existing detail gate corrected it, so the final pipeline matched all 22 labels. No exact normalised training-text overlaps were found. These are small synthetic diagnostics with two examples per characteristic, not independent evidence of production accuracy; similar scenarios may exist in training. No runtime rule or model was changed based on this result.
+
+For error review, examine the expected rationale first, then distinguish raw-model mistakes from detail/stock-rule mistakes. Prioritise false approvals of vague or repeated text and false rejections of specific experiences. Have business reviewers confirm disputed labels. Keep the benchmark out of training (the default training command does not load it); add separately reviewed examples to training only after analysis. Once these cases guide tuning, measure improvement on a fresh, independently labelled set and report both classes' precision/recall, not just overall accuracy. Do not tune thresholds just to make this diagnostic set pass.
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest backend/tests -q
@@ -181,17 +297,17 @@ npm --prefix frontend run build
 npm --prefix frontend run lint
 ```
 
-Train both models before running tests. Tests cover model safeguards, the six-category incentive policy, loyalty, detail-gated tickets, retry persistence, response fields, probabilities, invalid requests, readiness, and unavailable models.
+Train both models and run local MongoDB on port 27017 before testing. Backend tests use uniquely named `feedback_reward_test_*` databases and remove only those databases. Tests cover model safeguards, incentive policy, loyalty, tickets, saved metadata, reconnects, clarification identity, pagination and unavailable storage/models.
 
-With both servers running, run the repeatable browser checks:
+Run the repeatable browser checks (the config starts its own isolated servers):
 
 ```powershell
 npm --prefix frontend run test:e2e
 ```
 
-On Windows the tests use installed Microsoft Edge. On other platforms they use Playwright Chromium; install it from `frontend` with `npx playwright install chromium`. To use Chromium on Windows, install it the same way and set `$env:PLAYWRIGHT_CHANNEL = 'chromium'` before running the tests. The tests expect the frontend on port 5173; update `baseURL` in `frontend/playwright.config.ts` if necessary.
+On Windows the tests use installed Microsoft Edge. On other platforms they use Playwright Chromium; install it from `frontend` with `npx playwright install chromium`. To use Chromium on Windows, install it the same way and set `$env:PLAYWRIGHT_CHANNEL = 'chromium'`. Playwright starts API port 8001 and frontend port 5174, using a unique `feedback_reward_e2e_*` database and a temporary SQLite file. These ports must be free. The test helper only clears its generated test database; it never clears `feedback_reward_poc`. Interrupted runs can leave disposable test data behind.
 
-The browser tests exercise the real API, verify reward examples, greeting/nonsense rejection, detailed appreciation with and without greetings, generic stock rejection versus contextual stock acceptance, invalid-input disabling, loading locks, simulated 503 recovery, and layouts at 320, 390, 768, and 1440 pixels. They also verify session analytics, sentiment and time filters, navigation, history clearing, reload reset, failed-request exclusion, and updates while Insights is open. They regenerate the screenshots below. Backend tests additionally verify local training and model reload with network connections disabled, training-data validation, duplicate isolation, and expanded feedback examples. The backend test runner emits two dependency deprecation warnings.
+The browser tests exercise the real API, reward examples, validation, loading locks, simulated 503 recovery and layouts at 320, 390, 768 and 1440 pixels. They verify saved analytics, tickets, store/Sparks retention, legacy API compatibility and the live customer-to-colleague workflow described above. They regenerate screenshots. Backend tests additionally verify local training and model reload with network connections disabled, training-data validation, duplicate isolation and expanded feedback examples. The backend test runner emits two dependency deprecation warnings.
 
 For a local production-build preview, keep FastAPI running:
 
@@ -235,7 +351,7 @@ Suggested showcase captures:
 
 1. **Useful negative feedback:** select Store improvement, analyse, capture Negative / Yes / Eligible.
 2. **Generic praise:** select Generic praise, analyse, capture No / Not eligible regardless of sentiment.
-3. **Minor compliment:** select Helpful service, analyse, capture Positive / Yes / Not eligible. Enable the POC loyalty flag to demonstrate a high-tier recommendation for genuine feedback.
+3. **Loyalty:** analyse specific useful feedback with loyalty off, then on. Genuine meaningful feedback from a loyal customer receives a high-tier recommendation. Generic praise and gibberish remain ineligible. Reopen a complaint from Insights to record assignment, completed actions and customer follow-up.
 4. **Mobile result:** repeat Store improvement at a 390px viewport.
 
 ## Future enhancements

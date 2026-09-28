@@ -6,7 +6,10 @@
 .analytics-subtitle { color: var(--muted); margin-top: 6px; font-size: 14px; }
 .session-status { font: 11px var(--mono); color: var(--muted); }
 .analytics-toolbar { display: flex; justify-content: space-between; align-items: end; gap: 18px; padding: 20px 0; border-block: 1px solid var(--line); }
-.analytics-filters { display: flex; gap: 16px; }
+.analytics-filters { display: flex; flex-wrap: wrap; gap: 16px; min-width: 0; }
+.analytics-filters label { min-width: 0; }
+.history-filter { display: grid; gap: 8px; min-width: 0; }
+.analytics-toolbar > .icon-button { flex-shrink: 0; }
 .analytics-filters label { display: grid; gap: 8px; font-size: 12px; }
 .analytics-filters select { min-width: 160px; }
 .analytics-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 28px 0; border-bottom: 1px solid var(--line); }

@@ -1,0 +1,1400 @@
+{
+  "definition": {
+    "Yes": "Specific customer experiences, actions taken, employee interactions, product experiences, issue descriptions or detailed observations.",
+    "No": "Only generic praise, very short uninformative comments, repetition, vague appreciation or insufficient detail.",
+    "boundary": "A product or employee mention alone is insufficient. Concise specific experiences can be useful. Sentiment, loyalty and reward eligibility are not evaluation labels."
+  },
+  "labels": [
+    "No",
+    "Yes"
+  ],
+  "confusion_matrix_axes": "Rows expected; columns predicted, in labels order",
+  "raw_model": {
+    "count": 22,
+    "classification_report": {
+      "No": {
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1-score": 0.9473684210526315,
+        "support": 10.0
+      },
+      "Yes": {
+        "precision": 0.9230769230769231,
+        "recall": 1.0,
+        "f1-score": 0.96,
+        "support": 12.0
+      },
+      "accuracy": 0.9545454545454546,
+      "macro avg": {
+        "precision": 0.9615384615384616,
+        "recall": 0.95,
+        "f1-score": 0.9536842105263157,
+        "support": 22.0
+      },
+      "weighted avg": {
+        "precision": 0.958041958041958,
+        "recall": 0.9545454545454546,
+        "f1-score": 0.9542583732057416,
+        "support": 22.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        9,
+        1
+      ],
+      [
+        0,
+        12
+      ]
+    ],
+    "false_positives": 1,
+    "false_negatives": 0
+  },
+  "final_pipeline": {
+    "count": 22,
+    "classification_report": {
+      "No": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 10.0
+      },
+      "Yes": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 12.0
+      },
+      "accuracy": 1.0,
+      "macro avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 22.0
+      },
+      "weighted avg": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 22.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        10,
+        0
+      ],
+      [
+        0,
+        12
+      ]
+    ],
+    "false_positives": 0,
+    "false_negatives": 0
+  },
+  "by_characteristic": {
+    "actions_taken": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "detailed_observation": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "employee_interaction": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "generic_praise": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "insufficient_detail": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1-score": 0.6666666666666666,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 0.5,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.25,
+            "f1-score": 0.3333333333333333,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 0.5,
+            "f1-score": 0.6666666666666666,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            1,
+            1
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 1,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "issue_description": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "product_reference": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "repetition": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "specific_experience": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "Yes": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            0,
+            0
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "vague_appreciation": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    },
+    "very_short": {
+      "raw_model": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      },
+      "final_pipeline": {
+        "count": 2,
+        "classification_report": {
+          "No": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          },
+          "Yes": {
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1-score": 0.0,
+            "support": 0.0
+          },
+          "accuracy": 1.0,
+          "macro avg": {
+            "precision": 0.5,
+            "recall": 0.5,
+            "f1-score": 0.5,
+            "support": 2.0
+          },
+          "weighted avg": {
+            "precision": 1.0,
+            "recall": 1.0,
+            "f1-score": 1.0,
+            "support": 2.0
+          }
+        },
+        "confusion_matrix": [
+          [
+            2,
+            0
+          ],
+          [
+            0,
+            0
+          ]
+        ],
+        "false_positives": 0,
+        "false_negatives": 0
+      }
+    }
+  },
+  "training_text_overlap_count": 0,
+  "errors": [
+    {
+      "feedback_text": "The jacket.",
+      "genuine_feedback": "No",
+      "characteristic": "insufficient_detail",
+      "expected_reason": "A product name alone is not a specific product experience.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.52369752812436,
+      "final_prediction": "No",
+      "final_model_support": 0.47630247187564,
+      "detail_gate_passed": false,
+      "rules_changed_label": true,
+      "training_text_overlap": false,
+      "raw_error": "false_positive",
+      "final_error": null
+    }
+  ],
+  "cases": [
+    {
+      "feedback_text": "I visited the fitting room on Saturday and waited twenty minutes because only one cubicle was open.",
+      "genuine_feedback": "Yes",
+      "characteristic": "specific_experience",
+      "expected_reason": "Describes a visit, location and observed delay.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7122153039287779,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7122153039287779,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "At the evening checkout the queue reached the food aisle while two tills remained closed.",
+      "genuine_feedback": "Yes",
+      "characteristic": "specific_experience",
+      "expected_reason": "Identifies where and when a concrete queue problem occurred.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7585040466460204,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7585040466460204,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "I returned the leaking milk carton with my receipt and the colleague replaced it at the service desk.",
+      "genuine_feedback": "Yes",
+      "characteristic": "actions_taken",
+      "expected_reason": "Explains the product problem and the replacement action.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.8065602317749472,
+      "final_prediction": "Yes",
+      "final_model_support": 0.8065602317749472,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "I tried the collection code twice at the kiosk then asked the service desk to locate my order.",
+      "genuine_feedback": "Yes",
+      "characteristic": "actions_taken",
+      "expected_reason": "Describes attempted actions and follow-up for a specific order.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7772517516132039,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7772517516132039,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The fitting room colleague checked another branch for my jacket size and reserved it for collection.",
+      "genuine_feedback": "Yes",
+      "characteristic": "employee_interaction",
+      "expected_reason": "Describes what the employee did for a specific product request.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.8073960927593649,
+      "final_prediction": "Yes",
+      "final_model_support": 0.8073960927593649,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The colleague explained which meal deal items were included and corrected the shelf price with me.",
+      "genuine_feedback": "Yes",
+      "characteristic": "employee_interaction",
+      "expected_reason": "Gives concrete employee actions rather than vague staff appreciation.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7351067926408632,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7351067926408632,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The cotton shirt shrank at the sleeves after its first wash at the temperature on the care label.",
+      "genuine_feedback": "Yes",
+      "characteristic": "product_reference",
+      "expected_reason": "Names a product and a specific performance observation.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7958265151841266,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7958265151841266,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The sandwich packaging split along the seal before I opened it and the filling had dried out.",
+      "genuine_feedback": "Yes",
+      "characteristic": "product_reference",
+      "expected_reason": "Identifies the product and an observable packaging defect.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7915973657622689,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7915973657622689,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "My delivery contained two left shoes instead of a pair and I could not wear them to work.",
+      "genuine_feedback": "Yes",
+      "characteristic": "issue_description",
+      "expected_reason": "Describes a specific order error and its impact.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7493179996387158,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7493179996387158,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The checkout receipt charged for three loaves although I bought two.",
+      "genuine_feedback": "Yes",
+      "characteristic": "issue_description",
+      "expected_reason": "Provides an explicit discrepancy between the purchase and charge.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.7252925060193393,
+      "final_prediction": "Yes",
+      "final_model_support": 0.7252925060193393,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The price labels on the bottom shelf face downwards so I had to kneel to read the meal prices.",
+      "genuine_feedback": "Yes",
+      "characteristic": "detailed_observation",
+      "expected_reason": "Describes the exact display issue and customer impact.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.8032088615097677,
+      "final_prediction": "Yes",
+      "final_model_support": 0.8032088615097677,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The accessible fitting room had boxes across the doorway when I arrived this morning.",
+      "genuine_feedback": "Yes",
+      "characteristic": "detailed_observation",
+      "expected_reason": "Identifies an observed access obstruction with location and timing.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.709294239234301,
+      "final_prediction": "Yes",
+      "final_model_support": 0.709294239234301,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Fantastic store and excellent service.",
+      "genuine_feedback": "No",
+      "characteristic": "generic_praise",
+      "expected_reason": "Positive language without a specific event or observation.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.7474892444979231,
+      "final_prediction": "No",
+      "final_model_support": 0.7474892444979231,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Everything was wonderful and amazing.",
+      "genuine_feedback": "No",
+      "characteristic": "generic_praise",
+      "expected_reason": "Generic positive sentiment is not useful detail.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.6753842459852334,
+      "final_prediction": "No",
+      "final_model_support": 0.6753842459852334,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Nice.",
+      "genuine_feedback": "No",
+      "characteristic": "very_short",
+      "expected_reason": "Too little information to identify an experience.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.8192549411264373,
+      "final_prediction": "No",
+      "final_model_support": 0.8192549411264373,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Fine shop.",
+      "genuine_feedback": "No",
+      "characteristic": "very_short",
+      "expected_reason": "Short general opinion without supporting detail.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.7281336242933008,
+      "final_prediction": "No",
+      "final_model_support": 0.7281336242933008,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Helpful staff helpful staff helpful staff helpful staff.",
+      "genuine_feedback": "No",
+      "characteristic": "repetition",
+      "expected_reason": "Repeating the same appreciation adds no specific interaction.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.5179805748396615,
+      "final_prediction": "No",
+      "final_model_support": 0.5179805748396615,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Bad service bad service bad service bad service.",
+      "genuine_feedback": "No",
+      "characteristic": "repetition",
+      "expected_reason": "Repetition does not explain the service failure.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.7682550305980975,
+      "final_prediction": "No",
+      "final_model_support": 0.7682550305980975,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "Many thanks to your wonderful team for everything you do.",
+      "genuine_feedback": "No",
+      "characteristic": "vague_appreciation",
+      "expected_reason": "Appreciation does not describe any employee action.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.7487747177667954,
+      "final_prediction": "No",
+      "final_model_support": 0.7487747177667954,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "I really appreciate everyone at the store so much.",
+      "genuine_feedback": "No",
+      "characteristic": "vague_appreciation",
+      "expected_reason": "No concrete example of what was appreciated.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.5283990607708826,
+      "final_prediction": "No",
+      "final_model_support": 0.5283990607708826,
+      "detail_gate_passed": false,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    },
+    {
+      "feedback_text": "The jacket.",
+      "genuine_feedback": "No",
+      "characteristic": "insufficient_detail",
+      "expected_reason": "A product name alone is not a specific product experience.",
+      "raw_prediction": "Yes",
+      "raw_model_support": 0.52369752812436,
+      "final_prediction": "No",
+      "final_model_support": 0.47630247187564,
+      "detail_gate_passed": false,
+      "rules_changed_label": true,
+      "training_text_overlap": false,
+      "raw_error": "false_positive",
+      "final_error": null
+    },
+    {
+      "feedback_text": "Something was wrong during my visit but I have nothing else to add.",
+      "genuine_feedback": "No",
+      "characteristic": "insufficient_detail",
+      "expected_reason": "Length alone does not make an unspecified problem useful.",
+      "raw_prediction": "No",
+      "raw_model_support": 0.6251064582014354,
+      "final_prediction": "No",
+      "final_model_support": 0.6251064582014354,
+      "detail_gate_passed": true,
+      "rules_changed_label": false,
+      "training_text_overlap": false,
+      "raw_error": null,
+      "final_error": null
+    }
+  ],
+  "warning": "Assistant-authored synthetic diagnostic cases, not independent production accuracy or verified authenticity. Exact training-text overlap is flagged; similar scenarios may still overlap. Human label review is required. Keep these cases out of training; once used for tuning, use a fresh independent set to measure improvements.",
+  "evaluation_source": "C:\\Users\\2862530\\Desktop\\Innovation Projects\\sentiment analysis\\feedback-reward-poc\\backend\\data\\genuine_business_evaluation.csv",
+  "overlap_checked_sources": [
+    "C:\\Users\\2862530\\Desktop\\Innovation Projects\\sentiment analysis\\feedback-reward-poc\\backend\\data\\customer_feedback_training_data_300.csv",
+    "C:\\Users\\2862530\\Desktop\\Innovation Projects\\sentiment analysis\\feedback-reward-poc\\backend\\data\\genuine_feedback_synthetic.csv"
+  ]
+}

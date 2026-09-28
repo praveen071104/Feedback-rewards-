@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import {
   ArrowRight,
+  Bell,
   ChartNoAxesCombined,
   Check,
   CircleCheck,
@@ -20,21 +21,32 @@ import {
 } from 'lucide-react'
 import './App.css'
 import Analytics from './Analytics'
-import type { FeedbackRecord } from './Analytics'
-import ClosedLoop from './ClosedLoop'
+import ClosedLoop from './FeedbackResolutionHub'
+import TicketWorkflow from './TicketWorkflow'
+import CustomerFeedbackForm from './CustomerFeedbackForm'
+import { stores, useCaseNotifications } from './caseApi'
 
 type Prediction = {
+  feedbackId: string
+  feedback: string
+  storeId: string
+  store: { name: string; location: string }
+  loyalCustomer: boolean
+  createdAt: number
+  updatedAt: number
+  revision: number
   sentiment: 'Positive' | 'Neutral' | 'Negative'
   sentimentConfidence: number
   genuineFeedback: 'Yes' | 'No'
   genuineConfidence: number
   rewardEligible: boolean
   reason: string
-  category: 'ignored' | 'compliment' | 'major_compliment' | 'minor_complaint' | 'serious_complaint' | 'needs_clarification'
+  category: 'ignored' | 'compliment' | 'major_compliment' | 'minor_complaint' | 'serious_complaint' | 'needs_clarification' | 'suggestion'
   ticketRequired: boolean
   incentiveTier: 'none' | 'tier_based' | 'high'
   rewardDecision: 'eligible' | 'not_eligible' | 'pending'
   customerResponse: string
+  clarificationQuestions: string[]
   ticket: {
     id: string
     feedback: string
@@ -52,7 +64,8 @@ const categoryLabels = {
   major_compliment: 'Major compliment',
   minor_complaint: 'Minor complaint',
   serious_complaint: 'Serious complaint',
-  needs_clarification: 'Needs clarification',
+  needs_clarification: 'Awaiting Colleague Review',
+  suggestion: 'Store improvement suggestion',
 }
 
 const examples = [
@@ -78,6 +91,7 @@ function isPrediction(value: unknown): value is Prediction {
   if (!value || typeof value !== 'object') return false
   const result = value as Record<string, unknown>
   const ticket = result.ticket as Record<string, unknown> | null
+  const store = result.store as Record<string, unknown> | null
   const complaint = ['minor_complaint', 'serious_complaint'].includes(String(result.category))
   const validTicket = result.ticketRequired === true ? (
     complaint &&
@@ -91,6 +105,11 @@ function isPrediction(value: unknown): value is Prediction {
     Number.isFinite(Date.parse(ticket.createdAt))
   ) : ticket === null
   return (
+    typeof result.feedbackId === 'string' && /^[0-9a-f-]{36}$/i.test(result.feedbackId) &&
+    typeof result.feedback === 'string' && typeof result.storeId === 'string' &&
+    !!store && typeof store.name === 'string' && typeof store.location === 'string' &&
+    typeof result.loyalCustomer === 'boolean' &&
+    ['createdAt', 'updatedAt', 'revision'].every(key => typeof result[key] === 'number' && Number.isFinite(result[key]) && result[key] >= 0) &&
     ['Positive', 'Neutral', 'Negative'].includes(String(result.sentiment)) &&
     ['Yes', 'No'].includes(String(result.genuineFeedback)) &&
     ['sentimentConfidence', 'genuineConfidence'].every(
@@ -105,6 +124,8 @@ function isPrediction(value: unknown): value is Prediction {
     ['eligible', 'not_eligible', 'pending'].includes(String(result.rewardDecision)) &&
     Object.hasOwn(categoryLabels, String(result.category)) &&
     typeof result.customerResponse === 'string' &&
+    Array.isArray(result.clarificationQuestions) &&
+    result.clarificationQuestions.every(question => typeof question === 'string' && question.length > 0) &&
     typeof result.ticketRequired === 'boolean' &&
     ['none', 'tier_based', 'high'].includes(String(result.incentiveTier)) &&
     validTicket && typeof result.reason === 'string'
@@ -133,25 +154,88 @@ function Confidence({ label, value }: { label: string; value: number }) {
   )
 }
 
+function currentRoute() {
+  const [target, caseId = ''] = window.location.hash.slice(1).split('/')
+  const page = target === 'closed-loop' ? 'resolution-hub' : ['feedback', 'insights', 'resolution-hub'].includes(target) ? target : 'customer'
+  return { page, caseId }
+}
+
+function mergeRecords(current: Prediction[], incoming: Prediction[]) {
+  const records = new Map(current.map(record => [record.feedbackId, record]))
+  for (const record of incoming) {
+    const previous = records.get(record.feedbackId)
+    if (!previous || previous.revision <= record.revision) records.set(record.feedbackId, record)
+  }
+  return [...records.values()].sort((left, right) => right.createdAt - left.createdAt || right.feedbackId.localeCompare(left.feedbackId))
+}
+
 function App() {
-  const currentPage = () => ['#insights', '#closed-loop'].includes(window.location.hash) ? window.location.hash.slice(1) : 'feedback'
-  const [page, setPage] = useState(currentPage)
-  const [records, setRecords] = useState<FeedbackRecord[]>([])
+  const [route, setRoute] = useState(currentRoute)
+  const page = route.page
+  const { notifications, error: notificationError, refresh: refreshNotifications } = useCaseNotifications()
+  const newest = notifications.items.find(item => !item.is_read)
+  const [records, setRecords] = useState<Prediction[]>([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [historyError, setHistoryError] = useState('')
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
+  const historySequence = useRef(0)
   useEffect(() => {
-    const navigate = () => setPage(['#insights', '#closed-loop'].includes(window.location.hash) ? window.location.hash.slice(1) : 'feedback')
+    if (page === 'customer') return
+    const controller = new AbortController()
+    void loadHistory(null, controller.signal)
+    return () => controller.abort()
+  }, [page])
+  useEffect(() => {
+    const navigate = () => setRoute(currentRoute())
     window.addEventListener('hashchange', navigate)
     return () => window.removeEventListener('hashchange', navigate)
   }, [])
   const [feedback, setFeedback] = useState(examples[0].text)
   const [loyalCustomer, setLoyalCustomer] = useState(false)
+  const [storeId, setStoreId] = useState('unspecified')
   const [result, setResult] = useState<Prediction | null>(null)
   const [submittedFeedback, setSubmittedFeedback] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [ticketUpdated, setTicketUpdated] = useState(false)
   const inFlight = useRef(false)
   const submissionId = useRef<string | null>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const valid = /\p{L}/u.test(feedback.trim())
+
+  async function loadHistory(cursor: string | null = null, signal?: AbortSignal) {
+    const sequence = ++historySequence.current
+    setHistoryLoading(true)
+    setHistoryError('')
+    try {
+      const response = await fetch(`/api/feedback${cursor ? `?before=${encodeURIComponent(cursor)}` : ''}`, { signal })
+      if (!response.ok) throw new Error('Saved feedback is unavailable. Check MongoDB and retry.')
+      const history = await response.json()
+      if (!Array.isArray(history.items) || !history.items.every(isPrediction) ||
+          !(history.nextCursor === null || typeof history.nextCursor === 'string')) throw new Error('The server returned invalid saved feedback.')
+      if (sequence !== historySequence.current || signal?.aborted) return
+      setRecords(current => mergeRecords(current, history.items))
+      setNextCursor(history.nextCursor)
+    } catch (caught) {
+      if (sequence === historySequence.current && !signal?.aborted) setHistoryError(caught instanceof Error ? caught.message : 'Unable to load saved feedback.')
+    } finally {
+      if (sequence === historySequence.current && !signal?.aborted) setHistoryLoading(false)
+    }
+  }
+
+  function openRecord(identity: string) {
+    if (inFlight.current) return
+    const saved = records.find(record => record.feedbackId === identity)
+    if (!saved) return
+    changeFeedback(saved.feedback)
+    setStoreId(saved.storeId)
+    setLoyalCustomer(saved.loyalCustomer)
+    setSubmittedFeedback(saved.feedback)
+    setResult(saved)
+    submissionId.current = saved.revision === 0 ? saved.feedbackId : null
+    setTicketUpdated(saved.revision > 0)
+    window.location.hash = '#feedback'
+  }
 
   function changeFeedback(value: string) {
     submissionId.current = null
@@ -163,7 +247,7 @@ function App() {
 
   async function analyse(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!valid || inFlight.current) return
+    if (inFlight.current || !valid) return
     inFlight.current = true
     setLoading(true)
     setError('')
@@ -175,13 +259,15 @@ function App() {
       const response = await fetch('/api/predict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ feedback: feedback.trim(), submissionId: submissionId.current, loyalCustomer }),
+        body: JSON.stringify({ feedback: feedback.trim(), submissionId: submissionId.current, loyalCustomer, storeId }),
         signal: controller.signal,
       })
       if (!response.ok) {
         if (response.status === 503) {
           const problem = await response.json().catch(() => null)
-          throw new Error(problem?.detail?.startsWith('Ticket storage unavailable')
+          throw new Error(problem?.detail?.startsWith('Feedback storage unavailable')
+            ? 'Feedback could not be confirmed as saved. Check MongoDB and retry.'
+            : problem?.detail?.startsWith('Ticket storage unavailable')
             ? 'Ticket storage is unavailable. Please retry; no ticket confirmation was received.'
             : 'Models are unavailable. Train both models and restart the backend.')
         }
@@ -189,6 +275,10 @@ function App() {
           throw new Error(
             'Enter feedback containing letters, up to 5,000 characters.',
           )
+        if ([404, 409].includes(response.status)) {
+          const problem = await response.json().catch(() => null)
+          throw new Error(typeof problem?.detail === 'string' ? problem.detail : 'The ticket could not be updated. Your previous feedback has been kept.')
+        }
         throw new Error(
           'Analysis is unavailable. Check that the FastAPI backend is running and try again.',
         )
@@ -198,14 +288,10 @@ function App() {
         throw new Error(
           'The server returned an unexpected response. Please try again.',
         )
-      setSubmittedFeedback(feedback.trim())
+      setSubmittedFeedback(prediction.feedback)
+      setTicketUpdated(false)
       setResult(prediction)
-      if (prediction.category !== 'ignored') setRecords(current => [{
-        ...prediction,
-        id: crypto.randomUUID(),
-        feedback: feedback.trim(),
-        createdAt: Date.now(),
-      }, ...current])
+      setRecords(current => mergeRecords(current, [prediction]))
     } catch (caught) {
       setError(
         caught instanceof Error && caught.name === 'AbortError'
@@ -226,45 +312,39 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <a className="brand" href="#feedback" aria-label="Customer feedback home">
+        <a className="brand" href="#customer" aria-label="Customer feedback home">
           <span className="brand-mark">
             <MessageSquareText size={21} />
           </span>
           Feedback <span className="brand-divider">/</span>{' '}
           <span className="brand-subtitle">Innovation lab</span>
         </a>
-        <nav className="page-nav" aria-label="Main navigation">
-          <a href="#feedback" aria-current={page === 'feedback' ? 'page' : undefined}>
-            <MessageSquareText size={17} /> Feedback
-          </a>
-          <a href="#insights" aria-current={page === 'insights' ? 'page' : undefined}>
-            <ChartNoAxesCombined size={17} /> Insights
-          </a>
-          <a href="#closed-loop" aria-current={page === 'closed-loop' ? 'page' : undefined}>
-            <ClipboardCheck size={17} /> Closed Loop
-          </a>
+        <nav className="perspective-navigation" aria-label="Perspective navigation">
+          <a href="#customer" aria-current={page === 'customer' ? 'page' : undefined}><MessageSquareText size={17} />Customer Perspective</a>
+          <div className="colleague-navigation">
+            <a href="#feedback" aria-current={page !== 'customer' ? 'page' : undefined}><ClipboardCheck size={17} />Store Colleague Perspective</a>
+            <a className="notification-bell" href={newest ? `#resolution-hub/${newest.case_id}` : '#resolution-hub'} aria-label={`New feedback notifications: ${notifications.unread_count}`} title={notificationError || 'New feedback notifications'}><Bell className="notification-icon" size={19} />
+              <span className="notification-count" data-testid="notification-count" aria-live="polite">{notifications.unread_count}</span>
+            </a>
+          </div>
         </nav>
         <span className="poc-badge">
           <FlaskConical size={14} /> Proof of concept
         </span>
       </header>
       <main>
-        <div hidden={page !== 'closed-loop'}><ClosedLoop /></div>
-        {page === 'closed-loop' ? null : page === 'insights' ? <Analytics records={records} onClear={() => setRecords([])} /> : <>
-        <div className="page-heading">
-          <div>
-            <p className="eyebrow">CUSTOMER EXPERIENCE</p>
-            <h1>
-              Customer Feedback
-              <br />
-              <span>Reward Recommendation System</span>
-            </h1>
-          </div>
-          <div className="edition">
-            <span className="status-dot" /> SYNTHETIC DATASET
-            <span className="edition-number">EXPERIMENT 01 / 300 RECORDS</span>
-          </div>
-        </div>
+        <div hidden={page !== 'customer'}><CustomerFeedbackForm onSubmitted={refreshNotifications} /></div>
+        {page !== 'customer' && <nav className="page-nav colleague-tabs" aria-label="Colleague navigation">
+          <a href="#feedback" aria-current={page === 'feedback' ? 'page' : undefined}><MessageSquareText size={17} />Feedback</a>
+          <a href="#insights" aria-current={page === 'insights' ? 'page' : undefined}><ChartNoAxesCombined size={17} />Insights</a>
+          <a href="#resolution-hub" aria-current={page === 'resolution-hub' ? 'page' : undefined}><ClipboardCheck size={17} />Feedback Resolution Hub</a>
+        </nav>}
+        {page !== 'customer' && notificationError && <p className="error" role="alert">{notificationError}</p>}
+        {(page === 'resolution-hub' || page === 'feedback') && <ClosedLoop key={page} compact={page === 'feedback'} revision={notifications.revision} requestedCaseId={route.caseId} onChanged={refreshNotifications} />}
+        {page === 'customer' || page === 'resolution-hub' ? null : page === 'insights' ? <Analytics records={records}
+          loading={historyLoading} error={historyError} hasMore={nextCursor !== null} busy={loading}
+          onRefresh={() => void loadHistory()} onLoadMore={() => void loadHistory(nextCursor)} onOpen={openRecord} /> : <>
+        <h2 className="analysis-section-heading">Feedback analysis</h2>
         <ol className="workflow" aria-label="Analysis stages">
           <li className="current">
             <span className="step-number">01</span> Customer feedback
@@ -291,6 +371,10 @@ function App() {
               <span className="section-index">01 / INPUT</span>
             </div>
             <form onSubmit={analyse}>
+              <label htmlFor="feedback-store">Feedback store</label>
+              <select id="feedback-store" value={storeId} disabled={loading} onChange={event => { setStoreId(event.target.value); changeFeedback(feedback) }}>
+                {stores.map(store => <option key={store.id} value={store.id}>{store.name}</option>)}
+              </select>
               <label htmlFor="feedback">Customer feedback</label>
               <div className="textarea-wrap">
                 <textarea
@@ -336,7 +420,7 @@ function App() {
                   <RotateCcw size={18} />
                 </button>
               </div>
-              <label className="loyalty-input"><input type="checkbox" checked={loyalCustomer} disabled={loading} onChange={event => { setLoyalCustomer(event.target.checked); changeFeedback(feedback) }} />Loyal customer (POC profile)</label>
+              <label className="loyalty-input"><input type="checkbox" checked={loyalCustomer} disabled={loading} onChange={event => { setLoyalCustomer(event.target.checked); changeFeedback(feedback) }} />Sparks Customer (POC profile)</label>
               {error && (
                 <div className="error" role="alert">
                   <TriangleAlert size={18} />
@@ -375,7 +459,7 @@ function App() {
               <div>
                 <h3>Feedback recognition</h3>
                 <p>
-                  Service recovery, exceptional appreciation and loyal customers.
+                  Service recovery, exceptional appreciation and Sparks Customers.
                 </p>
               </div>
             </div>
@@ -419,6 +503,7 @@ function App() {
                 </div>
               ) : (
                 <div className="result-content">
+                  <p className="saved-feedback">Saved · {result.store.name} · {result.loyalCustomer ? 'Sparks Customer' : 'Non-Sparks Customer'}</p>
                   <div
                     className={`decision ${result.rewardDecision === 'pending' ? 'pending' : result.rewardEligible ? 'eligible' : 'not-eligible'}`}
                   >
@@ -432,11 +517,11 @@ function App() {
                     <div>
                       <span>REWARD RECOMMENDATION</span>
                       <h3>
-                        {result.rewardDecision === 'pending' ? 'Pending review' : result.rewardEligible ? 'Eligible' : 'Not eligible'}
+                        {result.rewardDecision === 'pending' ? 'Awaiting Colleague Review' : result.rewardEligible ? 'Eligible' : 'Not eligible'}
                       </h3>
                     </div>
                     <span className="decision-tag">
-                      {result.rewardDecision === 'pending' ? 'NEEDS DETAILS' : result.rewardEligible ? 'QUALIFIES' : 'DOES NOT QUALIFY'}
+                      COLLEAGUE REVIEW REQUIRED
                     </span>
                   </div>
                   <div className="metrics">
@@ -450,7 +535,7 @@ function App() {
                         </span>
                       </div>
                       <Confidence
-                        label="Sentiment confidence"
+                        label="Sentiment model support"
                         value={result.sentimentConfidence}
                       />
                     </div>
@@ -474,27 +559,26 @@ function App() {
                     <h3>{categoryLabels[result.category]}</h3>
                     <p>{result.reason}</p>
                   </div>
-                  {result.incentiveTier !== 'none' && <div className="explanation"><h3>Incentive recommendation</h3><p>{result.incentiveTier === 'high' ? 'High tier' : 'Tier-based'} · Amount undecided · Not issued</p></div>}
+                  {result.incentiveTier !== 'none' && <div className="explanation"><h3>Incentive recommendation</h3><p>{result.incentiveTier === 'high' ? 'High-tier Sparks incentive' : 'Standard reward'} · Points undecided · Not issued</p></div>}
                   {result.customerResponse && <div className="explanation customer-response">
-                    <h3>Customer response</h3>
-                    <p>{result.customerResponse}</p>
+                    <h3>Customer Communication</h3>
+                    <p>Thank you for your feedback. Your submission has been reviewed and the case has been updated.</p>
                   </div>}
                   {result.ticket && <section className="ticket-details" aria-label="Complaint ticket">
-                    <h3><Ticket size={17} /> Ticket opened</h3>
+                    <h3><Ticket size={17} /> {ticketUpdated ? 'Ticket updated' : 'Ticket opened'}</h3>
                     <dl>
                       <div><dt>Reference</dt><dd>{result.ticket.id}</dd></div>
-                      <div><dt>Status</dt><dd>Open</dd></div>
-                      <div><dt>Priority</dt><dd>{result.ticket.priority === 'priority' ? 'Priority review' : 'Normal'}</dd></div>
+                      <div><dt>Priority</dt><dd>{result.ticket.priority === 'priority' ? 'Priority attention' : 'Normal'}</dd></div>
                       <div><dt>Created</dt><dd>{new Date(result.ticket.createdAt).toLocaleString()}</dd></div>
                     </dl>
-                    <p>Local POC ticket. No customer notification sent.</p>
+                    <TicketWorkflow key={result.ticket.id} ticketId={result.ticket.id} busy={loading} />
                   </section>}
                   <div className="feedback-quote">
                     <h3>Feedback analysed</h3>
                     <blockquote>{submittedFeedback}</blockquote>
                   </div>
                   <p className="confidence-note">
-                    Model confidence is not severity confidence or verified accuracy.
+                    Model support is not verified sentiment accuracy. Rewards are recommendations only.
                   </p>
                 </div>
               )}
