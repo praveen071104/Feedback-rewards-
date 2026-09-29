@@ -5,7 +5,7 @@ import { caseApi, stores } from './caseApi'
 import './CustomerJourney.css'
 
 const ratingDescriptions = ['Very Poor', 'Poor', 'Satisfactory', 'Good', 'Very Good']
-const emptyForm = { name: '', email: '', phone_number: '', is_sparks_customer: false, sparks_id: '', feedback: '', rating: 0 }
+const emptyForm = { name: '', email: '', phone_number: '', sparks_id: '', feedback: '', rating: 0 }
 
 export function StarRating({ value, onChange, disabled }: { value: number; onChange: (value: number) => void; disabled: boolean }) {
   return <fieldset className="star-rating" disabled={disabled}>
@@ -40,7 +40,7 @@ export default function CustomerFeedbackForm({ onSubmitted }: { onSubmitted: () 
     event.preventDefault()
     if (inFlight.current) return
     if (!form.email.trim() && !form.phone_number.trim()) { setError('Enter an email address or phone number.'); return }
-    if (!form.name.trim() || !/\p{L}/u.test(form.feedback) || !form.rating || (form.is_sparks_customer && !form.sparks_id.trim())) {
+    if (!form.name.trim() || !/\p{L}/u.test(form.feedback) || !form.rating) {
       setError('Complete all required fields and select a rating.'); return
     }
     if (form.phone_number.trim() && (!/^\+?[0-9 ()-]+$/.test(form.phone_number.trim()) || !/^\d{7,15}$/.test(form.phone_number.replace(/\D/g, '')))) {
@@ -51,7 +51,8 @@ export default function CustomerFeedbackForm({ onSubmitted }: { onSubmitted: () 
     try {
       const result = await caseApi<{ case_id: string; status: string }>('customer-feedback', { method: 'POST', body: JSON.stringify({
         ...form, email: form.email.trim() || null, phone_number: form.phone_number.trim() || null,
-        sparks_id: form.is_sparks_customer ? form.sparks_id : null, submission_id: submission.current, store_id: store,
+        is_sparks_customer: Boolean(form.sparks_id.trim()), sparks_id: form.sparks_id.trim() || null,
+        submission_id: submission.current, store_id: store,
       }) })
       if (result.status !== 'submitted' || typeof result.case_id !== 'string') throw new Error('Submission was not confirmed. Please retry.')
       setSuccess(result.case_id); setForm(emptyForm); submission.current = null; onSubmitted()
@@ -72,10 +73,8 @@ export default function CustomerFeedbackForm({ onSubmitted }: { onSubmitted: () 
           <div><label htmlFor="customer-email">Email address</label><input id="customer-email" type="email" autoComplete="email" maxLength={254} value={form.email} onChange={event => change({ email: event.target.value })} /></div>
           <div><label htmlFor="customer-phone">Phone number</label><input id="customer-phone" type="tel" autoComplete="tel" maxLength={30} value={form.phone_number} onChange={event => change({ phone_number: event.target.value })} /></div>
         </fieldset>
-        <fieldset className="sparks-choice"><legend>Sparks Customer</legend>
-          {[false, true].map(value => <label key={String(value)}><input type="radio" name="sparks" checked={form.is_sparks_customer === value} onChange={() => change({ is_sparks_customer: value, sparks_id: '' })} />{value ? 'Yes' : 'No'}</label>)}
-        </fieldset>
-        {form.is_sparks_customer && <><label htmlFor="sparks-id">Sparks ID <span>(required)</span></label><input id="sparks-id" value={form.sparks_id} maxLength={64} required onChange={event => change({ sparks_id: event.target.value })} /></>}
+        <label htmlFor="sparks-id">Sparks ID <span>(optional)</span></label>
+        <input id="sparks-id" value={form.sparks_id} maxLength={64} onChange={event => change({ sparks_id: event.target.value })} />
         <label htmlFor="customer-feedback">Feedback <span>(required)</span></label><textarea id="customer-feedback" maxLength={5000} required value={form.feedback} aria-describedby="customer-counter" onChange={event => change({ feedback: event.target.value })} />
         <small id="customer-counter" className="customer-counter">{form.feedback.length.toLocaleString()} / 5,000</small>
         <StarRating value={form.rating} onChange={rating => change({ rating })} disabled={busy} />

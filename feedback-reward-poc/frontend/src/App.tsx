@@ -156,7 +156,7 @@ function Confidence({ label, value }: { label: string; value: number }) {
 
 function currentRoute() {
   const [target, caseId = ''] = window.location.hash.slice(1).split('/')
-  const page = target === 'closed-loop' ? 'resolution-hub' : ['feedback', 'insights', 'resolution-hub'].includes(target) ? target : 'customer'
+  const page = target === 'staff' ? 'feedback' : target === 'closed-loop' ? 'resolution-hub' : ['feedback', 'insights', 'resolution-hub'].includes(target) ? target : 'customer'
   return { page, caseId }
 }
 
@@ -319,14 +319,9 @@ function App() {
           Feedback <span className="brand-divider">/</span>{' '}
           <span className="brand-subtitle">Innovation lab</span>
         </a>
-        <nav className="perspective-navigation" aria-label="Perspective navigation">
-          <a href="#customer" aria-current={page === 'customer' ? 'page' : undefined}><MessageSquareText size={17} />Customer Perspective</a>
-          <div className="colleague-navigation">
-            <a href="#feedback" aria-current={page !== 'customer' ? 'page' : undefined}><ClipboardCheck size={17} />Store Colleague Perspective</a>
-            <a className="notification-bell" href={newest ? `#resolution-hub/${newest.case_id}` : '#resolution-hub'} aria-label={`New feedback notifications: ${notifications.unread_count}`} title={notificationError || 'New feedback notifications'}><Bell className="notification-icon" size={19} />
-              <span className="notification-count" data-testid="notification-count" aria-live="polite">{notifications.unread_count}</span>
-            </a>
-          </div>
+        <nav className="perspective-navigation" aria-label="Screen navigation">
+          <a href="#customer" aria-current={page === 'customer' ? 'page' : undefined}><MessageSquareText size={17} />Customer</a>
+          <a href="#staff" aria-current={page !== 'customer' ? 'page' : undefined}><ClipboardCheck size={17} />Staff</a>
         </nav>
         <span className="poc-badge">
           <FlaskConical size={14} /> Proof of concept
@@ -334,10 +329,13 @@ function App() {
       </header>
       <main>
         <div hidden={page !== 'customer'}><CustomerFeedbackForm onSubmitted={refreshNotifications} /></div>
-        {page !== 'customer' && <nav className="page-nav colleague-tabs" aria-label="Colleague navigation">
-          <a href="#feedback" aria-current={page === 'feedback' ? 'page' : undefined}><MessageSquareText size={17} />Feedback</a>
+        {page !== 'customer' && <nav className="page-nav colleague-tabs" aria-label="Staff navigation">
+          <a href="#feedback" aria-current={page === 'feedback' ? 'page' : undefined}><MessageSquareText size={17} />Feedback Analysis</a>
           <a href="#insights" aria-current={page === 'insights' ? 'page' : undefined}><ChartNoAxesCombined size={17} />Insights</a>
           <a href="#resolution-hub" aria-current={page === 'resolution-hub' ? 'page' : undefined}><ClipboardCheck size={17} />Feedback Resolution Hub</a>
+          <a className="notification-bell" href={newest ? `#resolution-hub/${newest.case_id}` : '#resolution-hub'} aria-label={`New feedback notifications: ${notifications.unread_count}`} title={notificationError || 'New feedback notifications'}><Bell className="notification-icon" size={19} />
+            <span className="notification-count" data-testid="notification-count" aria-live="polite">{notifications.unread_count}</span>
+          </a>
         </nav>}
         {page !== 'customer' && notificationError && <p className="error" role="alert">{notificationError}</p>}
         {(page === 'resolution-hub' || page === 'feedback') && <ClosedLoop key={page} compact={page === 'feedback'} revision={notifications.revision} requestedCaseId={route.caseId} onChanged={refreshNotifications} />}
