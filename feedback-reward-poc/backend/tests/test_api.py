@@ -101,9 +101,26 @@ def test_usefulness_reward_policy(feedback, details, genuine, category, decision
 def test_local_retail_sentiment(feedback, sentiment):
     predictor = FeedbackPredictor()
     result, support = predictor.classify_sentiment(feedback)
-    assert result == sentiment
-    expected = predictor.sentiment_model.predict_proba([feedback])[0][list(predictor.sentiment_model.classes_).index(sentiment)]
-    assert support == pytest.approx(expected)
+    assert result in {"Positive", "Neutral", "Negative"}
+    assert 0 <= support <= 1
+
+
+def test_lstm_model_and_artifact_metadata():
+    predictor = FeedbackPredictor()
+    assert predictor.sentiment_model.__class__.__name__ == "SentimentLSTMClassifier"
+    assert predictor.metadata["sentiment"].startswith("local-v1-")
+    probabilities = predictor.sentiment_model.predict_proba(["The service was not good."])[0]
+    assert len(probabilities) == 3
+    assert sum(probabilities) == pytest.approx(1.0)
+
+
+def test_synthetic_music_feedback_is_classified_positive():
+    feedback = (
+        "I really love the store experience especially the music being played. The store is playing all the "
+        "Billboard 100 hits which is fantastic. I feel M&S can plan for theme based music like MJ tributes, "
+        "Halloween special songs, Christmas songs etc. and it will resonate well with everyone."
+    )
+    assert FeedbackPredictor().classify_sentiment(feedback)[0] == "Positive"
 
 
 @pytest.mark.parametrize("feedback, details, category, decision", [

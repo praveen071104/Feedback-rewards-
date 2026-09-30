@@ -9,7 +9,6 @@ import {
   CircleMinus,
   Clock3,
   ClipboardCheck,
-  FlaskConical,
   Gift,
   LoaderCircle,
   MessageSquareText,
@@ -317,20 +316,16 @@ function App() {
             <MessageSquareText size={21} />
           </span>
           Feedback <span className="brand-divider">/</span>{' '}
-          <span className="brand-subtitle">Innovation lab</span>
         </a>
-        <nav className="perspective-navigation" aria-label="Perspective navigation">
-          <a href="#customer" aria-current={page === 'customer' ? 'page' : undefined}><MessageSquareText size={17} />Customer Perspective</a>
+        <nav className="workspace-navigation" aria-label="Feedback navigation">
+          <a href="#customer" aria-current={page === 'customer' ? 'page' : undefined}><MessageSquareText size={17} />Customer</a>
           <div className="colleague-navigation">
-            <a href="#feedback" aria-current={page !== 'customer' ? 'page' : undefined}><ClipboardCheck size={17} />Store Colleague Perspective</a>
+            <a href="#feedback" aria-current={page !== 'customer' ? 'page' : undefined}><ClipboardCheck size={17} />Store Colleague</a>
             <a className="notification-bell" href={newest ? `#resolution-hub/${newest.case_id}` : '#resolution-hub'} aria-label={`New feedback notifications: ${notifications.unread_count}`} title={notificationError || 'New feedback notifications'}><Bell className="notification-icon" size={19} />
               <span className="notification-count" data-testid="notification-count" aria-live="polite">{notifications.unread_count}</span>
             </a>
           </div>
         </nav>
-        <span className="poc-badge">
-          <FlaskConical size={14} /> Proof of concept
-        </span>
       </header>
       <main>
         <div hidden={page !== 'customer'}><CustomerFeedbackForm onSubmitted={refreshNotifications} /></div>
@@ -420,7 +415,7 @@ function App() {
                   <RotateCcw size={18} />
                 </button>
               </div>
-              <label className="loyalty-input"><input type="checkbox" checked={loyalCustomer} disabled={loading} onChange={event => { setLoyalCustomer(event.target.checked); changeFeedback(feedback) }} />Sparks Customer (POC profile)</label>
+              <label className="loyalty-input"><input type="checkbox" checked={loyalCustomer} disabled={loading} onChange={event => { setLoyalCustomer(event.target.checked); changeFeedback(feedback) }} />Sparks Customer</label>
               {error && (
                 <div className="error" role="alert">
                   <TriangleAlert size={18} />
@@ -535,7 +530,7 @@ function App() {
                         </span>
                       </div>
                       <Confidence
-                        label="Sentiment model support"
+                        label="Sentiment score"
                         value={result.sentimentConfidence}
                       />
                     </div>
@@ -587,20 +582,12 @@ function App() {
         </div>
         </>}
         <aside className="disclaimer">
-          <FlaskConical size={18} />
-          <p>
-            <strong>Showcase only.</strong> Small synthetic dataset with
-            conflicting labels. Recommendations may be inaccurate. No rewards
-            are issued.
-          </p>
+          <p>Automated assessments may be inaccurate. Colleague review is required where indicated. Rewards are not issued through this system.</p>
         </aside>
       </main>
       <footer>
-        <span>FEEDBACK INTELLIGENCE / POC</span>
-        <span>
-          TF-IDF + Logistic Regression<span className="footer-dot">/</span>React
-          + FastAPI
-        </span>
+        <span>Customer Feedback</span>
+        <span>Customer and colleague workspace</span>
       </footer>
     </div>
   )

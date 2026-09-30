@@ -9,11 +9,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.model_selection import GroupShuffleSplit, train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
+from sentiment_lstm import SentimentLSTMClassifier
 
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_DATA = BASE_DIR / "data" / "customer_feedback_training_data_300.csv"
 GENUINE_SUPPLEMENT = BASE_DIR / "data" / "genuine_feedback_synthetic.csv"
+SENTIMENT_SUPPLEMENT = BASE_DIR / "data" / "sentiment_feedback_synthetic.csv"
 LABELS = {
     "sentiment": {"Positive", "Neutral", "Negative"},
     "genuine_feedback": {"Yes", "No"},
@@ -119,9 +121,73 @@ def train_local_genuine(data: pd.DataFrame) -> tuple[Pipeline, dict]:
 def train(target: str, filename: str) -> None:
     parser = argparse.ArgumentParser(description=f"Train the {target} classifier")
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
+    if target == "sentiment":
+        parser.add_argument("--supplement", type=Path, help="Optional additional sentiment CSV")
     if target == "genuine_feedback":
         parser.add_argument("--supplement", type=Path, help="Optional additional Yes/No feedback CSV")
     args = parser.parse_args()
+
+    if target == "sentiment":
+        data = load_dataset(args.data)
+        supplement = args.supplement
+        if supplement is None and args.data.resolve() == DEFAULT_DATA.resolve():
+            supplement = SENTIMENT_SUPPLEMENT
+        sources = [str(args.data)]
+        if supplement is not None:
+            additional = pd.read_csv(supplement, keep_default_na=False)
+            required = {"feedback_text", "sentiment"}
+            if not required.issubset(additional.columns):
+                raise ValueError("Sentiment supplement CSV must contain feedback_text and sentiment")
+            additional = additional[["feedback_text", "sentiment"]].copy()
+            additional["feedback_text"] = additional["feedback_text"].astype(str).str.strip()
+            additional["sentiment"] = additional["sentiment"].astype(str).str.strip()
+            if additional.eq("").any().any():
+                raise ValueError("Empty values in sentiment supplement")
+            if not set(additional["sentiment"]).issubset(LABELS["sentiment"]):
+                raise ValueError("Invalid sentiment supplement labels")
+            for column in ("genuine_feedback", "reward_eligible"):
+                additional[column] = "No"
+            data = pd.concat([data, additional], ignore_index=True)
+            sources.append(str(supplement))
+        texts = data["feedback_text"].tolist()
+        labels = data[target].tolist()
+        normalized = data["feedback_text"].str.lower().str.replace(r"\s+", " ", regex=True).str.strip()
+        grouped = data.assign(group=normalized)
+        conflicts = grouped.groupby("group")[target].nunique()
+        conflicting_groups = set(conflicts[conflicts > 1].index)
+        grouped = grouped[~grouped["group"].isin(conflicting_groups)].drop_duplicates("group").reset_index(drop=True)
+        texts = grouped["feedback_text"].tolist()
+        labels = grouped[target].tolist()
+        groups = grouped["group"]
+        if len(grouped) < 12 or set(labels) != LABELS[target]:
+            raise ValueError("Need at least 12 uniquely labelled sentiment texts covering all classes")
+        splitter = GroupShuffleSplit(n_splits=1, test_size=0.25, random_state=42)
+        train_indices, test_indices = next(splitter.split(texts, labels, groups))
+        evaluation_model = SentimentLSTMClassifier().fit(
+            [texts[index] for index in train_indices], [labels[index] for index in train_indices],
+        )
+        predictions = evaluation_model.predict([texts[index] for index in test_indices])
+        report = {
+            "target": "sentiment", "model": "PyTorch bidirectional LSTM",
+            "rows": len(data), "unique_feedback": len(grouped),
+            "conflicting_label_groups_excluded": len(conflicting_groups),
+            "data_sources": sources,
+            "evaluation": "25% grouped holdout from mixed original and synthetic data; conflicting normalized text groups excluded before splitting",
+            "test_rows": len(test_indices),
+            "accuracy": accuracy_score([labels[index] for index in test_indices], predictions),
+            "classification_report": classification_report(
+                [labels[index] for index in test_indices], predictions,
+                labels=sorted(LABELS[target]), output_dict=True, zero_division=0,
+            ),
+            "warning": "Synthetic examples are illustrative assistant-authored data, not real customer feedback. Mixed-source holdout scores do not demonstrate production accuracy or sarcasm detection; scores are not calibrated confidence.",
+        }
+        final_model = SentimentLSTMClassifier().fit(texts, labels)
+        joblib.dump(final_model, BASE_DIR / filename)
+        report_path = BASE_DIR / "sentiment_metrics.json"
+        report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(json.dumps(report, indent=2))
+        print(f"Saved local model {BASE_DIR / filename}. Restart FastAPI to load it.")
+        return
 
     if target == "genuine_feedback":
         data = load_genuine_supplement(args.data)

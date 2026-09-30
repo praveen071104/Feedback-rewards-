@@ -4,7 +4,6 @@ import re
 
 import joblib
 from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
-from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from triage import triage_feedback
 
 
@@ -40,16 +39,6 @@ STOCK_CONTEXT_PATTERN = re.compile(
     r"\b(?:could\s+not|couldn't|couldnt)\s+(?:buy|get|find)\b"
 )
 RESTOCK_REQUEST_PATTERN = re.compile(r"\b(?:restock|replenish|stocked|replenished)\b")
-RETAIL_SENTIMENT = re.compile(
-    r"\b(?:sold\s*out|out of stock|no stock|not available|not arrived|did not arrive|"
-    r"hasn't arrived|never arrived|charged twice|double charged|too dim|eye strain|"
-    r"too small to read|not clear|would not close|could not enter|couldn't enter|"
-    r"no response|no reply|no refund|wash well|stayed soft|kept their shape|"
-    r"resolved my issue|resolved the issue|fasten securely)\b"
-)
-POSITIVE_RETAIL = {"wash well", "stayed soft", "kept their shape", "resolved my issue", "resolved the issue", "fasten securely"}
-
-
 class FeedbackPredictor:
     def __init__(self, model_dir: Path = BASE_DIR):
         sentiment_path = model_dir / "sentiment_model.pkl"
@@ -64,11 +53,6 @@ class FeedbackPredictor:
         for name, path in (("sentiment", sentiment_path), ("genuine", genuine_path)):
             with path.open("rb") as artifact:
                 self.metadata[name] = "local-v1-" + hashlib.file_digest(artifact, "sha256").hexdigest()[:12]
-        self.sentiment_analyzer = SentimentIntensityAnalyzer()
-        self.sentiment_analyzer.lexicon.update({
-            "faulty": -2.2, "overcharged": -2.5, "unhelpful": -2.0,
-            "stale": -1.8, "unavailable": -1.8, "inaccessible": -2.3,
-        })
         if not hasattr(self.genuine_model, "named_steps"):
             raise ValueError("Run train_genuine.py to create a local scikit-learn model.")
 
@@ -89,18 +73,9 @@ class FeedbackPredictor:
         return len(recognised) >= 2 or (len(recognised) >= 1 and len(informative) >= 4)
 
     def classify_sentiment(self, feedback: str) -> tuple[str, float]:
-        text = feedback.lower().replace("\u2019", "'")
-        text = re.sub(r"\b(?:thank you|thanks|thankfully|hello|hi|please)\b[!,]?", "", text)
-        text = RETAIL_SENTIMENT.sub(
-            lambda match: "excellent" if match.group() in POSITIVE_RETAIL else "disappointing", text,
-        )
-        clauses = re.split(r"[.!?;\n]|\b(?:but|however|although|and)\b", text)
-        scores = [self.sentiment_analyzer.polarity_scores(clause)["compound"] for clause in clauses if clause.strip()]
-        positive = any(score >= 0.05 for score in scores)
-        negative = any(score <= -0.05 for score in scores)
-        sentiment = "Neutral" if positive == negative else "Positive" if positive else "Negative"
         probabilities = self.sentiment_model.predict_proba([feedback])[0]
-        return sentiment, float(probabilities[list(self.sentiment_model.classes_).index(sentiment)])
+        index = int(probabilities.argmax())
+        return str(self.sentiment_model.classes_[index]), float(probabilities[index])
 
     @staticmethod
     def stock_feedback_context(feedback: str) -> tuple[bool, bool]:

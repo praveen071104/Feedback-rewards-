@@ -26,9 +26,9 @@
 .submission-success strong { font-size: 15px; }
 .submission-success small { display: block; margin-top: 8px; font-size: 11px; overflow-wrap: anywhere; }
 .submission-success svg { flex-shrink: 0; }
-.perspective-navigation { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
-.perspective-navigation a { display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 12px; font-weight: 600; min-height: 44px; padding: 10px 12px; border-bottom: 2px solid transparent; }
-.perspective-navigation a[aria-current='page'] { color: var(--green); border-color: var(--green); background: #f0f6f2; }
+.workspace-navigation { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.workspace-navigation a { display: flex; align-items: center; gap: 8px; text-decoration: none; font-size: 12px; font-weight: 600; min-height: 44px; padding: 10px 12px; border-bottom: 2px solid transparent; }
+.workspace-navigation a[aria-current='page'] { color: var(--green); border-color: var(--green); background: #f0f6f2; }
 .colleague-navigation { display: flex; align-items: center; }
 .colleague-navigation .notification-bell { padding-inline: 8px; min-width: 44px; }
 .notification-count { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 2px 5px; border-radius: 10px; background: #a83a35; color: white; font: 10px var(--mono); }
@@ -65,14 +65,14 @@
 .analysis-section-heading { margin-block: 32px 20px; font-size: 20px; }
 @media (max-width: 1000px) {
   .topbar { flex-wrap: wrap; }
-  .perspective-navigation { order: 3; flex-basis: 100%; }
+  .workspace-navigation { order: 3; flex-basis: 100%; }
 }
 @media (max-width: 700px) {
   .customer-form { padding: 20px 14px; }
   .customer-form .contact-fields { grid-template-columns: 1fr; gap: 0; }
-  .perspective-navigation { gap: 0; justify-content: space-between; }
-  .perspective-navigation a { font-size: 11px; padding: 8px 4px; gap: 4px; }
-  .perspective-navigation a > svg:not(.notification-icon) { display: none; }
+  .workspace-navigation { gap: 0; justify-content: space-between; }
+  .workspace-navigation a { font-size: 11px; padding: 8px 4px; gap: 4px; }
+  .workspace-navigation a > svg:not(.notification-icon) { display: none; }
   .colleague-tabs a { white-space: normal; }
   .case-support { grid-template-columns: 1fr; }
   .loop-detail-heading { flex-wrap: wrap; }

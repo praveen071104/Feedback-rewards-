@@ -80,6 +80,17 @@ def test_low_confidence_and_sparks(store, predictor, monkeypatch):
     assert detail["reward_assessment"]["final_decision"] is None
 
 
+def test_rating_and_text_sentiment_conflict_requires_colleague_review(store, predictor, monkeypatch):
+    monkeypatch.setattr(predictor, "classify_sentiment", lambda text: ("Positive", 0.8))
+    case_id = store.submit(submission(rating=1), predictor)["case_id"]
+    detail = store.detail(case_id)
+    assert detail["sentiment"]["label"] == "Positive"
+    assert detail["sentiment"]["rating_sentiment"] == "Negative"
+    assert detail["sentiment"]["rating_conflict"] is True
+    assert detail["reward_assessment"]["model_recommendation"] == "Awaiting Colleague Review"
+    assert detail["reward_assessment"]["reason_code"] == "REVIEW_REQUIRED_RATING_SENTIMENT_MISMATCH"
+
+
 def test_decision_communication_versions_and_status_transitions(store, predictor):
     identity = store.submit(submission(), predictor)["case_id"]
     with pytest.raises(HTTPException):

@@ -53,8 +53,8 @@ function FeedbackCaseDetail({ item, onSaved, onReload, onNotice }: {
         setNote('')
       }
       onNotice(action === 'review' ? 'Colleague decision recorded.' : item.customer.email
-        ? 'Customer notification email has been sent successfully. POC simulation only; no email was delivered.'
-        : 'Customer notification has been recorded. POC simulation only.')
+        ? 'Customer email update has been recorded. Email simulation only; no email was delivered.'
+        : 'Customer notification recorded by phone.')
     } catch (caught) { setError(caught instanceof Error ? caught.message : 'Unable to save. Please retry.') }
     finally { inFlight.current = false; setBusy(false) }
   }
@@ -82,12 +82,12 @@ function FeedbackCaseDetail({ item, onSaved, onReload, onNotice }: {
       <div><dt>Customer notification</dt><dd>{item.customer_communication.status}</dd></div>
     </dl>
     <section className="case-support" aria-label="Model decision support">
-      <div><h3>Sentiment</h3><span className={`sentiment ${item.sentiment.label.toLowerCase()}`}>{item.sentiment.label}</span><p>Sentiment model support: {percent(item.sentiment.confidence)}</p></div>
+      <div><h3>Text sentiment</h3><span className={`sentiment ${item.sentiment.label.toLowerCase()}`}>{item.sentiment.label}</span><p>Sentiment score: {percent(item.sentiment.confidence)}</p>
+        {item.sentiment.rating_conflict && <p role="alert">Text sentiment differs from the {item.rating}-star rating ({item.sentiment.rating_sentiment}). Colleague review required.</p>}</div>
       <div><h3>Genuine feedback</h3><strong>{assessment.model_label}</strong><p>Model confidence: {percent(assessment.model_confidence)}</p></div>
       <div><h3>Model recommendation</h3><strong>{assessment.model_recommendation}</strong><small>Colleague confirmation required</small></div>
       <div><h3>Incentive recommendation</h3><p>{assessment.incentive_tier === 'high' ? 'High tier' : assessment.incentive_tier === 'tier_based' ? 'Standard reward' : 'None'} / Not issued</p></div>
-      <details><summary>Assessment details</summary><p>{assessment.model_reason}</p><p>{assessment.reason_code} / Review threshold: {percent(assessment.threshold)}</p>
-        <p>{item.sentiment.model_name} / {item.sentiment.model_version}</p><p>{item.sentiment.confidence_kind}</p><p>{assessment.model_name} / {assessment.model_version}</p>
+      <details><summary>Assessment details</summary><p>{assessment.model_reason}</p><p>Review threshold: {percent(assessment.threshold)}</p>
       </details>
     </section>
     <div className="case-decision"><strong>Colleague decision: {assessment.final_decision ?? 'Awaiting Colleague Review'}</strong>
@@ -96,7 +96,7 @@ function FeedbackCaseDetail({ item, onSaved, onReload, onNotice }: {
     </div>
     {error && <p className="error" role="alert">{error}</p>}
     <section className="loop-message" aria-label="Customer Communication">
-      <h3>Customer Communication <span>POC simulation</span></h3>
+      <h3>Customer Communication <span>Email simulation</span></h3>
       <label htmlFor="communication-template">Communication template</label>
       <select id="communication-template" value={template} disabled={busy} onChange={event => setTemplate(event.target.value as Template)}>
         <option value="general">General resolution</option><option value="reward_eligible" disabled={assessment.final_decision !== 'Reward Eligible'}>Reward eligible</option>
@@ -186,7 +186,7 @@ export default function FeedbackResolutionHub({ revision = 0, requestedCaseId = 
   function clearSelection() { setPage(1); setDetail(null); detailSequence.current++; setOpening(false) }
 
   return <div className="closed-loop">
-    <div className="page-heading"><div><p className="eyebrow">M&S / STORE COLLEAGUE</p><h1>{compact ? 'Store Colleague Perspective' : 'Feedback Resolution Hub'}</h1></div></div>
+    <div className="page-heading"><div><p className="eyebrow">M&S / STORE COLLEAGUE</p><h1>{compact ? 'Store Colleague' : 'Feedback Resolution Hub'}</h1></div></div>
     <div className="loop-toolbar">
       <div><label htmlFor="loop-store">Choose Store</label><select id="loop-store" value={store} onChange={event => { setStore(event.target.value); clearSelection() }}><option value="">All stores</option>{stores.map(entry => <option key={entry.id} value={entry.id}>{entry.name}</option>)}</select></div>
       <div><label htmlFor="loop-status">Case Status</label><select id="loop-status" value={status} onChange={event => { setStatus(event.target.value); clearSelection() }}><option value="">All statuses</option>{statuses.map(entry => <option key={entry}>{entry}</option>)}</select></div>

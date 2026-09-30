@@ -4,11 +4,13 @@ A local showcase POC: React + TypeScript + Vite, FastAPI, and two independently 
 
 ## Customer-to-colleague workflow
 
-The default page is **Customer Perspective** (`/#customer`). Customers provide their name, an email or phone number, Sparks Customer status, a conditional Sparks ID, feedback and a 1-5 star rating. Store selection also supports a QR destination such as `/?store=bluewater#customer`. The privacy notice is placeholder wording pending business approval. Successful submission clears the form and shows a green confirmation with the case reference; failures retain all fields and retry with the same submission UUID.
+The default page is **Customer** (`/#customer`). Customers provide their name, an email or phone number, Sparks Customer status, a conditional Sparks ID, feedback and a 1-5 star rating. Store selection also supports a QR destination such as `/?store=bluewater#customer`. The privacy notice is placeholder wording pending business approval. Successful submission clears the form and shows a green confirmation with the case reference; failures retain all fields and retry with the same submission UUID.
 
-**Store Colleague Perspective** (`/#feedback`) contains received customer cases, concise database-derived insights and the preserved analysis dashboard. **Feedback Resolution Hub** (`/#resolution-hub`) replaces the fictional Closed Loop demo; the old hash remains an alias. Store, status, search and final-decision filters sit above the case area. Case statuses are only **Opened**, **In Progress**, and **Resolved**. Forward transitions and direct Opened-to-Resolved are allowed; resolution requires a confirmed reward decision. A case cannot move backwards.
+**Store Colleague** (`/#feedback`) contains received customer cases, concise database-derived insights and the preserved analysis dashboard. **Feedback Resolution Hub** (`/#resolution-hub`) replaces the fictional Closed Loop demo; the old hash remains an alias. Store, status, search and final-decision filters sit above the case area. Case statuses are only **Opened**, **In Progress**, and **Resolved**. Forward transitions and direct Opened-to-Resolved are allowed; resolution requires a confirmed reward decision. A case cannot move backwards.
 
 The bell shows unread cases across all stores and opens the newest unread case. Opening a case marks it read without finalizing its reward decision. Colleagues record their name, decision reason, optional internal note and status. Model recommendation and final decision are separate; final decisions start null. Missing/pending assessments, conflicting eligible/genuine signals or genuine confidence below `REWARD_REVIEW_THRESHOLD` (default `0.75`) require review. Negative sentiment alone never means ineligible. Existing usefulness, relevance, stock and incentive rules remain in use. No customer clarification is requested in the UI.
+
+Customer star ratings and LSTM text sentiment are separate signals. Ratings 1-2 map to negative, 3 to neutral, and 4-5 to positive for comparison only; the rating does not overwrite the model's text label. When the two differ, the case is flagged and requires colleague review. This avoids silently treating a low rating as proof that positive wording is negative, or vice versa.
 
 **Customer Communication** previews a generic template before the separate **Send customer update** action. Reward-specific templates require the matching saved colleague decision. Email success is explicitly labelled **POC simulation**; no email is actually delivered. Phone-only cases record a notification without claiming email delivery. Non-Sparks messages do not claim a Sparks account confirmation. The template, channel, time, simulation status and decision history persist in MongoDB. Rewards and Sparks balances are not issued or updated.
 
@@ -44,7 +46,7 @@ Browser routes below use `/api`; Vite strips that prefix for the existing FastAP
 
 Request/response models are documented in `/docs`. New optional backend variables are `REWARD_REVIEW_THRESHOLD` and `FEEDBACK_ALLOWED_ORIGINS` (comma-separated WebSocket browser origins, default localhost/127.0.0.1 on ports 5173 and 5174). Add the actual origin for alternative ports or preview port 4173. Existing `MONGODB_URI`, `MONGODB_DATABASE`, `FEEDBACK_TICKETS_DB` and Vite's `FEEDBACK_API_URL` are unchanged. No secrets or dependencies were added. Structured case log records use IDs and action names; access logs strip search query strings.
 
-**Model limitation:** this repository has no DistilBERT pipeline. It intentionally uses local TF-IDF/Logistic Regression and VADER, which are preserved without retraining or downloads. Case records identify the real model names and SHA-256 artifact versions, not DistilBERT. Sentiment support is not calibrated VADER confidence. A DistilBERT replacement would be a separate, explicitly approved model change.
+**Sentiment model limitation:** sentiment now uses a locally trained PyTorch bidirectional LSTM; it does not use VADER or a pretrained transformer. Default training adds 61 clearly synthetic examples to the original 300-row CSV. The combined grouped holdout has 76 unique texts after excluding 10 conflicting duplicate-text groups; retraining regenerates the reported metrics. This is a demo training exercise, not evidence of reliable sentiment or sarcasm detection. The displayed softmax score is not calibrated confidence. Sentiment does not determine reward eligibility; colleague review remains required by the case workflow.
 
 **POC boundary:** navigation is not authentication. There is no public profile-directory endpoint, but anyone with local API access can retrieve case-linked contacts. Use fictional data on localhost only. No identity verification, approved privacy/retention policy, real messaging, reward fulfilment, or production authorization is implemented.
 
@@ -60,7 +62,7 @@ Customer feedback -> Sentiment model -> Positive / Neutral / Negative
                   -> Colleague confirmation -> Final decision / Generic communication / Resolution
 ```
 
-All analysis runs locally: no Hugging Face, pretrained-model download, PyTorch, or external AI call. Sentiment labels now use VADER with bounded retail phrases and clause-level checks: praise is positive, problems negative, and mixed or unpolarised comments neutral. Courtesy words such as "please" do not turn a complaint positive. The original word TF-IDF + Logistic Regression sentiment model supplies support for the displayed label, not confidence in VADER's decision. Negation, sarcasm and complex mixed wording remain limitations; passing examples is not proof of general accuracy. Genuine feedback still uses the local word/character TF-IDF + Logistic Regression model and detail safeguards, independently of sentiment.
+All analysis runs locally without external inference calls. Sentiment uses a PyTorch bidirectional LSTM trained from the original local CSV plus `backend/data/sentiment_feedback_synthetic.csv`. The latest mixed holdout is 31.6% accurate; only 1/7 negative and 1/7 positive examples were detected. This is not reliable performance. Synthetic examples are fictional, and this split does not establish production accuracy or sarcasm detection. The LSTM softmax score is not calibrated confidence. Genuine feedback still uses the separate local word/character TF-IDF + Logistic Regression model and detail safeguards, independently of sentiment.
 
 Reward eligibility is separate from the genuine-feedback label and sentiment. The POC response policy is:
 
@@ -88,7 +90,7 @@ The reason is a transparent rule-based explanation of the prediction, not an LLM
 ```text
 feedback-reward-poc/
   frontend/
-    src/App.tsx                Perspectives, legacy analysis and saved history
+    src/App.tsx                Navigation, legacy analysis and saved history
     src/App.css                Responsive workspace styling
     src/CustomerFeedbackForm.tsx Customer form, stars and success confirmation
     src/CustomerJourney.css     Customer and colleague workflow styling
@@ -105,6 +107,7 @@ feedback-reward-poc/
     tests/app.spec.ts          Live browser tests and screenshot capture
   backend/
     data/customer_feedback_training_data_300.csv
+    data/sentiment_feedback_synthetic.csv  60 fictional sentiment examples for demo retraining
     data/genuine_feedback_synthetic.csv  Synthetic supplement, not real customer data
     training.py                Shared validation, training, evaluation
     train_sentiment.py
@@ -256,7 +259,7 @@ Response shape (illustrative probabilities, not a promised output):
 }
 ```
 
-`sentimentConfidence` is retained for API compatibility but is the original logistic model's support for the label selected by VADER/retail rules. The UI calls it **Sentiment model support**, not confidence in the new decision. `genuineConfidence` similarly remains model probability for the displayed genuine label even when a rule overrides it. Both can be below 50%; neither is calibrated accuracy, authenticity or severity confidence.
+`sentimentConfidence` is retained for API compatibility and now contains the LSTM's softmax score for its selected label. The UI calls it an **Experimental sentiment score**; it is not calibrated confidence or accuracy. `genuineConfidence` similarly remains model probability for the displayed genuine label even when a rule overrides it. Neither score verifies authenticity or severity.
 
 ```powershell
 Invoke-RestMethod -Uri http://127.0.0.1:8000/predict -Method Post -ContentType 'application/json' -Body '{"feedback":"The checkout queue is very long between 5 PM and 6 PM."}'
@@ -320,9 +323,9 @@ This preview also proxies `/api`. A deployed static build would need its own rev
 
 ## Dataset quality and limitations
 
-The supplied 300-row CSV has only **25 unique feedback texts**. **10 text groups have conflicting sentiment labels**; for example, short generic comments occur under different sentiments. No labels were silently corrected. Genuine/reward labels agree for all rows.
+The supplied 300-row CSV has only **25 unique feedback texts**. **10 text groups have conflicting sentiment labels**; for example, short generic comments occur under different sentiments. No labels were silently corrected. Default sentiment retraining adds 61 assistant-authored fictional examples (20 negative, 20 neutral, 21 positive) from `backend/data/sentiment_feedback_synthetic.csv`, including sarcasm labelled by intended meaning. Conflicting duplicate-text groups are excluded before evaluation and training. The current mixed holdout has 76 unique examples and 19 test examples; it scores 31.6% accuracy, detecting 1/7 negative examples. It is not an independent or production-quality evaluation; use human-labelled retail feedback before relying on this model.
 
-Sentiment retains its original grouped holdout (89 rows), with 21.3% accuracy. Genuine training combines 300 original rows and 140 synthetic supplemental rows, deduplicating 440 rows to **165 unique texts**. A fixed-seed stratified split uses 123 texts for training and 42 for evaluation. TF-IDF is fitted only on the training partition during evaluation; a fresh final genuine model is then fitted on all 165 unique texts for this demo.
+Genuine training combines 300 original rows and 140 synthetic supplemental rows, deduplicating 440 rows to **165 unique texts**. A fixed-seed stratified split uses 123 texts for training and 42 for evaluation. TF-IDF is fitted only on the training partition during evaluation; a fresh final genuine model is then fitted on all 165 unique texts for this demo.
 
 | Genuine classifier | Synthetic holdout accuracy | Macro F1 |
 | --- | ---: | ---: |

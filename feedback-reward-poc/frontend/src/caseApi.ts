@@ -21,7 +21,7 @@ export type FeedbackCase = {
   version: number
   created_at: string
   updated_at: string
-  sentiment: { label: 'Positive' | 'Neutral' | 'Negative'; confidence: number; model_name: string; model_version: string; confidence_kind: string }
+  sentiment: { label: 'Positive' | 'Neutral' | 'Negative'; confidence: number; model_name: string; model_version: string; confidence_kind: string; rating_sentiment?: 'Positive' | 'Neutral' | 'Negative' | null; rating_conflict?: boolean }
   reward_assessment: {
     model_recommendation: Decision; model_confidence: number; model_label: string; model_name: string; model_version: string
     threshold: number; reason_code: string; model_reason: string; category: string; incentive_tier: string

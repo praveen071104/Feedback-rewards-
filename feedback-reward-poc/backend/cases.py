@@ -119,6 +119,8 @@ class Sentiment(BaseModel):
     model_name: str
     model_version: str
     confidence_kind: str
+    rating_sentiment: Literal["Positive", "Neutral", "Negative"] | None = None
+    rating_conflict: bool = False
 
 
 class Assessment(BaseModel):
@@ -290,6 +292,8 @@ class CaseStore:
         if predictor is None:
             raise HTTPException(503, "Analysis unavailable. Your submission is not complete; please retry.")
         result = predictor.predict(payload.feedback, payload.is_sparks_customer)
+        rating_sentiment = "Negative" if payload.rating <= 2 else "Positive" if payload.rating >= 4 else "Neutral"
+        rating_conflict = result["sentiment"] != rating_sentiment
         try:
             threshold = float(os.environ.get("REWARD_REVIEW_THRESHOLD", "0.75"))
         except ValueError:
@@ -297,21 +301,24 @@ class CaseStore:
         if not 0 <= threshold <= 1:
             raise HTTPException(503, "Review threshold configuration is invalid.")
         conflicting = result["rewardDecision"] == "eligible" and result["genuineFeedback"] != "Yes"
-        review = result["genuineConfidence"] < threshold or result["rewardDecision"] == "pending" or conflicting
+        review = (result["genuineConfidence"] < threshold or result["rewardDecision"] == "pending"
+              or conflicting or rating_conflict)
         recommendation = "Awaiting Colleague Review" if review else "Reward Eligible" if result["rewardDecision"] == "eligible" else "Not Eligible"
         metadata = getattr(predictor, "metadata", {})
         document = {
             "_id": identity, "case_id": identity, "customer_id": customer_id, "store_id": payload.store_id,
             "feedback": payload.feedback, "rating": payload.rating,
             "sentiment": {"label": result["sentiment"], "confidence": result["sentimentConfidence"],
-                          "model_name": "VADER + retail rules; TF-IDF logistic support",
+                          "model_name": "Bidirectional LSTM sentiment classifier",
                           "model_version": metadata.get("sentiment", "local-existing"),
-                          "confidence_kind": "Local logistic model support, not calibrated VADER confidence"},
+                          "confidence_kind": "LSTM softmax score; not calibrated confidence",
+                          "rating_sentiment": rating_sentiment, "rating_conflict": rating_conflict},
             "reward_assessment": {
                 "model_recommendation": recommendation, "model_confidence": result["genuineConfidence"],
                 "model_label": result["genuineFeedback"], "model_name": "TF-IDF + Logistic Regression",
                 "model_version": metadata.get("genuine", "local-existing"), "threshold": threshold,
-                "reason_code": "REVIEW_REQUIRED" if review else "EXISTING_BUSINESS_RULES",
+                "reason_code": ("REVIEW_REQUIRED_RATING_SENTIMENT_MISMATCH" if rating_conflict
+                                else "REVIEW_REQUIRED" if review else "EXISTING_BUSINESS_RULES"),
                 "model_reason": result["reason"], "category": result["category"], "incentive_tier": result["incentiveTier"],
                 "final_decision": None, "decision_reason": None, "confirmed_by": None, "confirmed_at": None,
             },
