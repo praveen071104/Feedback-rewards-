@@ -1,0 +1,12 @@
+{
+  "ai": {
+    "model": "claude-3.5-sonnet",
+    "max_calls_per_run": 200,
+    "concurrency": 4,
+    "timeout_seconds": 60,
+    "prompt_version": "2",
+    "task_max_calls": {
+      "triage": 200
+    }
+  }
+}

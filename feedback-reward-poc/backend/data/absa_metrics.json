@@ -1,0 +1,58 @@
+{
+  "n_rows": 200518,
+  "category": {
+    "macro_f1": 0.9939780865407201,
+    "report": {
+      "gibberish": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 4600.0
+      },
+      "major_compliment": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 9200.0
+      },
+      "minor_complaint": {
+        "precision": 0.979782772341112,
+        "recall": 0.9903260869565217,
+        "f1-score": 0.9850262176333856,
+        "support": 9200.0
+      },
+      "minor_compliment": {
+        "precision": 0.9902208548511152,
+        "recall": 0.9795652173913043,
+        "f1-score": 0.9848642150702147,
+        "support": 9200.0
+      },
+      "serious_complaint": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 7904.0
+      },
+      "accuracy": 0.9930929583083982,
+      "macro avg": {
+        "precision": 0.9940007254384454,
+        "recall": 0.9939782608695651,
+        "f1-score": 0.9939780865407201,
+        "support": 40104.0
+      },
+      "weighted avg": {
+        "precision": 0.9931187255677363,
+        "recall": 0.9930929583083982,
+        "f1-score": 0.9930927583501177,
+        "support": 40104.0
+      }
+    }
+  },
+  "presence": {
+    "macro_f1": 0.9976771714468752,
+    "micro_f1": 0.9970997799123763
+  },
+  "sentiment": {
+    "macro_f1": 0.9951912426137879
+  }
+}
